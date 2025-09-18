@@ -1,5 +1,5 @@
 import { EllipsisVertical } from "lucide-react";
-import { Button } from "../ui/button";
+import { IconButton } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 
 export default function UserProfileSkeleton() {
@@ -9,9 +9,9 @@ export default function UserProfileSkeleton() {
       <div className="flex flex-col gap-1 leading-tight text-sm w-full">
         <Skeleton className="h-8 w-40" />
       </div>
-      <Button variant="ghost" color="neutral" className="ml-auto" iconOnly>
+      <IconButton variant="ghost" color="neutral" className="ml-auto">
         <EllipsisVertical size={20} />
-      </Button>
+      </IconButton>
     </footer>
   );
 }

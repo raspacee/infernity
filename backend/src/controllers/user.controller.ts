@@ -7,7 +7,8 @@ const handleGetMyInfo = async (req: Request, res: Response) => {
 
     res.status(200).json(user);
   } catch (err) {
-    return res.status(500).json({ error: err });
+    console.error(err);
+    return res.status(500).json({ error: "Error while getting user info" });
   }
 };
 

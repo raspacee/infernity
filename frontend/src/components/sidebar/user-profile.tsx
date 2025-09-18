@@ -1,6 +1,6 @@
 import { useGetMyInfo } from "@/hooks/user/use-get-user-info";
 import Image from "next/image";
-import { Button } from "../ui/button";
+import { IconButton } from "../ui/button";
 import { EllipsisVertical } from "lucide-react";
 
 export default function UserProfile() {
@@ -8,8 +8,9 @@ export default function UserProfile() {
 
   return (
     <footer className="flex gap-2 items-center">
-      <Image
-        src={user.avatarUrl ?? ""}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={user?.avatarUrl ?? undefined}
         width={32}
         height={32}
         alt="Profile Picture"
@@ -19,9 +20,9 @@ export default function UserProfile() {
         <span className="font-medium">{user?.name}</span>
         <span className="text-text-tertiary text-xs">{user?.email}</span>
       </div>
-      <Button variant="ghost" color="neutral" className="ml-auto" iconOnly>
+      <IconButton variant="ghost" color="neutral" className="ml-auto">
         <EllipsisVertical />
-      </Button>
+      </IconButton>
     </footer>
   );
 }

@@ -7,7 +7,9 @@
     "start": "node dist/index.js",
     "dev": "tsx watch src/server.ts",
     "worker": "node dist/worker.js",
-    "worker:dev": "tsx watch src/worker.ts"
+    "worker:dev": "tsx watch src/worker.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run worker:dev\"",
+    "start:all": "concurrently \"npm run start\" \"npm run worker\""
   },
   "author": "Bijay Khapung",
   "license": "ISC",
@@ -47,6 +49,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "@types/pg": "^8.15.4",
+    "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.4",
     "tsx": "^4.20.3"
   }

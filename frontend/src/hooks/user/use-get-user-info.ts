@@ -1,8 +1,8 @@
 import { UserApi } from "@/api/user";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 export const useGetMyInfo = () => {
-  return useSuspenseQuery({
+  return useQuery({
     queryKey: ["user", "me"],
     queryFn: UserApi.fetchCurrentUser,
   });

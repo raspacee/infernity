@@ -7,14 +7,18 @@ import { IconButton } from "../ui/button";
 import { ArrowUp } from "lucide-react";
 import { useGetMessages } from "@/hooks/message/use-get-messages";
 import { useCreateMessage } from "@/hooks/message/use-create-message";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSocket } from "@/hooks/use-socket";
 import { AI_STATUS } from "@/types/ai-status.types";
 import { useQueryClient } from "@tanstack/react-query";
+import { useGetMyInfo } from "@/hooks/user/use-get-user-info";
+import { getNameInitials } from "@/lib/helpers";
 
 export default function Chat({ conversationId }: { conversationId: string }) {
+  const { data: user } = useGetMyInfo();
   const { data, isPending } = useGetMessages(conversationId);
   const { mutateAsync: createMessage } = useCreateMessage();
+
   const [aiThinking, setAiThinking] = useState(false);
   const [aiStream, setAiStream] = useState("");
   const [query, setQuery] = useState("");
@@ -47,6 +51,7 @@ export default function Chat({ conversationId }: { conversationId: string }) {
             break;
 
           case "streaming":
+            setAiThinking(false);
             if (data) setAiStream((prev) => prev + data);
             break;
         }
@@ -77,12 +82,18 @@ export default function Chat({ conversationId }: { conversationId: string }) {
           data.messages.map((message) => (
             <div key={message.id} className="flex gap-3">
               <Avatar className="mt-3">
-                <AvatarImage src="jpt" alt="User profile picture" />
-                <AvatarFallback>BJ</AvatarFallback>
+                <AvatarImage
+                  className="border border-border object-contain"
+                  src={message.role === "assistant" ? "/logo.svg" : undefined}
+                  alt="User profile picture"
+                />
+                <AvatarFallback>
+                  {getNameInitials(user?.name || "")}
+                </AvatarFallback>
               </Avatar>
               <p
                 className={cn("p-3 font-normal text-base", {
-                  "rounded-lg bg-bg-level0": message.role === "user",
+                  "rounded-lg bg-elevation-level1": message.role === "user",
                   "": message.role === "assistant",
                 })}
               >
@@ -92,10 +103,16 @@ export default function Chat({ conversationId }: { conversationId: string }) {
           ))}
         {data?.messages.length === 0 && <p>No messages</p>}
 
+        {aiThinking && (
+          <p className="text-fg-tertiary text-sm font-medium">
+            AI is thinking...
+          </p>
+        )}
+
         {aiStream && (
           <div className="flex gap-3">
             <Avatar className="mt-3">
-              <AvatarImage src="ai.jpg" />
+              <AvatarImage src="/logo.svg" />
               <AvatarFallback>AI</AvatarFallback>
             </Avatar>
             <p className="p-3 font-normal text-base rounded-lg bg-bg-level0">
@@ -114,6 +131,12 @@ export default function Chat({ conversationId }: { conversationId: string }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ask AI something about your document"
             resizable={false}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
           />
           <div className="flex justify-end">
             <IconButton
