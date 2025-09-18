@@ -1,0 +1,1 @@
+ALTER TABLE "messages" ALTER COLUMN "model" DROP NOT NULL;

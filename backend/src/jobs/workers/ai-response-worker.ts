@@ -1,0 +1,68 @@
+import { HumanMessage, MessageContent } from "@langchain/core/messages";
+import { DocumentService } from "../../services/document.service";
+import { llm, systemPrompt } from "../../utils/chat";
+import { aiResponseQueue } from "../queues/ai-response-queue";
+import { s3Client } from "../../clients/s3-client";
+import { documentsIndex } from "../../clients/pinecone-client";
+import { getEmitter } from "../emitter";
+import { AI_STATUS, AI_STATUS_QUEUE_NAME } from "../../types/ai-status.types";
+import { db } from "../../db";
+import { messagesTable } from "../../db/schema";
+
+const documentService = new DocumentService(s3Client, documentsIndex);
+
+aiResponseQueue.process(5, async (job) => {
+  const { userId, conversationId, query } = job.data;
+
+  const io = getEmitter();
+
+  try {
+    const t0 = process.hrtime.bigint();
+
+    const context = await documentService.getNearestChunks(
+      conversationId,
+      userId,
+      query
+    );
+
+    const t1 = process.hrtime.bigint();
+    const contextMs = Number(t1 - t0) / 1_000_000; // convert ns → ms
+    console.log(`getNearestChunks took ${contextMs.toFixed(2)} ms`);
+
+    const contextTextChunks = context.map((item) => item.chunkText);
+
+    const response = await llm.stream([
+      systemPrompt,
+      new HumanMessage(`Context: ${contextTextChunks}\n\nQuestion: ${query}`),
+    ]);
+
+    const responseChunks: MessageContent[] = [];
+
+    for await (const chunk of response) {
+      responseChunks.push(chunk.content);
+      io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {
+        status: "streaming" as AI_STATUS,
+        data: chunk.content,
+      });
+    }
+
+    await db.insert(messagesTable).values({
+      role: "assistant",
+      content: responseChunks.join(""),
+      conversationId,
+      createdAt: new Date().toISOString(),
+    });
+
+    io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {
+      status: "finished" as AI_STATUS,
+    });
+  } catch (err) {
+    console.error(err);
+
+    io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {
+      status: "error" as AI_STATUS,
+    });
+
+    throw err;
+  }
+});

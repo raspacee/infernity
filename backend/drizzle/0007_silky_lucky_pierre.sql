@@ -1,0 +1,1 @@
+ALTER TABLE "documents" ALTER COLUMN "conversationId" DROP NOT NULL;
