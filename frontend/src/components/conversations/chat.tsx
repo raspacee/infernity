@@ -1,10 +1,7 @@
 "use client";
 
-import { TextArea } from "../ui/text-area";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { IconButton } from "../ui/button";
-import { ArrowUp } from "lucide-react";
 import { useGetMessages } from "@/hooks/message/use-get-messages";
 import { useCreateMessage } from "@/hooks/message/use-create-message";
 import React, { useEffect, useRef, useState } from "react";
@@ -13,15 +10,26 @@ import { AI_STATUS } from "@/types/ai-status.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetMyInfo } from "@/hooks/user/use-get-user-info";
 import { getNameInitials } from "@/lib/helpers";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import ChatInput from "./chat-input";
 
 export default function Chat({ conversationId }: { conversationId: string }) {
   const { data: user } = useGetMyInfo();
   const { data, isPending } = useGetMessages(conversationId);
   const { mutateAsync: createMessage } = useCreateMessage();
 
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+
+  /* The status of AI is deliberately represented by two variables instead
+   * of one union type variable to combat the glitch of message dissapearing
+   * when ai streaming is finished
+   */
   const [aiThinking, setAiThinking] = useState(false);
   const [aiStream, setAiStream] = useState("");
-  const [query, setQuery] = useState("");
+
+  const aiStreaming = aiStream !== "";
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const socket = useSocket();
@@ -35,13 +43,22 @@ export default function Chat({ conversationId }: { conversationId: string }) {
 
     socket.on(
       "ai-status",
-      ({ status, data }: { status: AI_STATUS; data?: string }) => {
+      ({
+        status,
+        data,
+        jobId,
+      }: {
+        status: AI_STATUS;
+        data?: string;
+        jobId?: string;
+      }) => {
         switch (status) {
           case "thinking":
             setAiThinking(true);
             break;
 
           case "finished":
+          case "cancelled":
             setAiThinking(false);
             queryClient
               .refetchQueries({
@@ -52,6 +69,7 @@ export default function Chat({ conversationId }: { conversationId: string }) {
 
           case "streaming":
             setAiThinking(false);
+            if (jobId) setCurrentJobId(jobId);
             if (data) setAiStream((prev) => prev + data);
             break;
         }
@@ -67,11 +85,12 @@ export default function Chat({ conversationId }: { conversationId: string }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [aiStream, data]);
 
-  const handleSendMessage = async () => {
-    if (query) {
-      createMessage({ conversationId, content: query });
-      setQuery("");
-    }
+  const handleSendMessage = async (query: string) => {
+    createMessage({ conversationId, content: query });
+  };
+
+  const handleStopStreaming = () => {
+    socket?.emit("cancel-job", currentJobId);
   };
 
   return (
@@ -91,14 +110,16 @@ export default function Chat({ conversationId }: { conversationId: string }) {
                   {getNameInitials(user?.name || "")}
                 </AvatarFallback>
               </Avatar>
-              <p
+              <div
                 className={cn("p-3 font-normal text-base", {
                   "rounded-lg bg-elevation-level1": message.role === "user",
                   "": message.role === "assistant",
                 })}
               >
-                {message.content}
-              </p>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {message.content}
+                </ReactMarkdown>
+              </div>
             </div>
           ))}
         {data?.messages.length === 0 && <p>No messages</p>}
@@ -115,39 +136,23 @@ export default function Chat({ conversationId }: { conversationId: string }) {
               <AvatarImage src="/logo.svg" />
               <AvatarFallback>AI</AvatarFallback>
             </Avatar>
-            <p className="p-3 font-normal text-base rounded-lg bg-bg-level0">
-              {aiStream}
-            </p>
+            <div className="p-3 font-normal text-base rounded-lg bg-bg-level0">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {aiStream}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
 
         <div data-slot="scroll-into-view" ref={messagesEndRef} />
       </div>
       <div className="h-fit p-3 w-full">
-        <div className="border rounded-lg border-border px-3 p-2 focus-within:ring focus-within:ring-primary">
-          <TextArea
-            className="h-10 drop-shadow-none placeholder:text-base text-base border-none focus:ring-0 p-0"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ask AI something about your document"
-            resizable={false}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-          />
-          <div className="flex justify-end">
-            <IconButton
-              size="32"
-              onClick={handleSendMessage}
-              loading={aiThinking}
-            >
-              <ArrowUp />
-            </IconButton>
-          </div>
-        </div>
+        <ChatInput
+          aiThinking={aiThinking}
+          aiStreaming={aiStreaming}
+          handleSendMessage={handleSendMessage}
+          handleStopStreaming={handleStopStreaming}
+        />
       </div>
     </div>
   );

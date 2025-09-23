@@ -8,7 +8,7 @@ const port = app.get("port") || 8000;
 
 const server = http.createServer(app);
 
-const pubClient = createClient({ url: process.env.REDIS_URL });
+export const pubClient = createClient({ url: process.env.REDIS_URL });
 const subClient = pubClient.duplicate();
 
 const io = initSocket(server);

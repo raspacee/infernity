@@ -115,9 +115,7 @@ export class ConversationController {
         createdAt: new Date().toISOString(),
       });
 
-      res.status(201).json({ message });
-
-      await aiResponseQueue.add(
+      const job = await aiResponseQueue.add(
         {
           messageId: message.id,
           userId: req.user!.id,
@@ -130,6 +128,8 @@ export class ConversationController {
           delay: 1000,
         }
       );
+
+      res.status(201).json({ message, jobId: job.id });
     } catch (err) {
       console.error(err);
       res.status(500).json({

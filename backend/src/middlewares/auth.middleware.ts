@@ -12,19 +12,9 @@ const validateAccessToken = (
   res: Response,
   next: NextFunction
 ) => {
-  console.log(
-    "validateAccessToken invoked",
-    req.path,
-    req.cookies,
-    req.cookies?.access_token
-  );
   const token = req.cookies?.access_token;
 
-  console.log("Token", req.cookies);
-  console.log("ZZ", token);
-
   if (!token) {
-    console.log("TT", token);
     res.status(401).json({ error: "No access token provided" });
     return;
   }

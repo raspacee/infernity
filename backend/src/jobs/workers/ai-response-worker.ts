@@ -8,6 +8,10 @@ import { getEmitter } from "../emitter";
 import { AI_STATUS, AI_STATUS_QUEUE_NAME } from "../../types/ai-status.types";
 import { db } from "../../db";
 import { messagesTable } from "../../db/schema";
+import { setupJobCancellationListener } from "../job-cancellation";
+
+const jobControllers = new Map<string, AbortController>();
+setupJobCancellationListener(jobControllers);
 
 const documentService = new DocumentService(s3Client, documentsIndex);
 
@@ -15,6 +19,11 @@ aiResponseQueue.process(5, async (job) => {
   const { userId, conversationId, query } = job.data;
 
   const io = getEmitter();
+
+  const responseChunks: MessageContent[] = [];
+
+  const controller = new AbortController();
+  jobControllers.set(job.id.toString(), controller);
 
   try {
     const t0 = process.hrtime.bigint();
@@ -31,16 +40,18 @@ aiResponseQueue.process(5, async (job) => {
 
     const contextTextChunks = context.map((item) => item.chunkText);
 
-    const response = await llm.stream([
-      systemPrompt,
-      new HumanMessage(`Context: ${contextTextChunks}\n\nQuestion: ${query}`),
-    ]);
-
-    const responseChunks: MessageContent[] = [];
+    const response = await llm.stream(
+      [
+        systemPrompt,
+        new HumanMessage(`Context: ${contextTextChunks}\n\nQuestion: ${query}`),
+      ],
+      { signal: controller.signal }
+    );
 
     for await (const chunk of response) {
       responseChunks.push(chunk.content);
       io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {
+        jobId: job.id,
         status: "streaming" as AI_STATUS,
         data: chunk.content,
       });
@@ -54,15 +65,32 @@ aiResponseQueue.process(5, async (job) => {
     });
 
     io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {
+      jobId: job.id,
       status: "finished" as AI_STATUS,
     });
   } catch (err) {
-    console.error(err);
+    if (controller.signal.aborted) {
+      io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {
+        status: "cancelled" as AI_STATUS,
+      });
 
-    io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {
-      status: "error" as AI_STATUS,
-    });
+      await db.insert(messagesTable).values({
+        role: "assistant",
+        content: responseChunks.join(""),
+        conversationId,
+        createdAt: new Date().toISOString(),
+      });
 
-    throw err;
+      return;
+    } else {
+      console.error(err);
+      io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {
+        jobId: job.id,
+        status: "error" as AI_STATUS,
+      });
+      throw err;
+    }
+  } finally {
+    jobControllers.delete(job.id.toString());
   }
 });
