@@ -73,7 +73,7 @@ export default function Chat({ conversationId }: { conversationId: string }) {
             if (data) setAiStream((prev) => prev + data);
             break;
         }
-      }
+      },
     );
 
     return () => {
@@ -82,7 +82,7 @@ export default function Chat({ conversationId }: { conversationId: string }) {
   }, [socket, conversationId, queryClient]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [aiStream, data]);
 
   const handleSendMessage = async (query: string) => {
@@ -95,14 +95,14 @@ export default function Chat({ conversationId }: { conversationId: string }) {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="flex-1 overflow-y-auto space-y-4 p-4">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {data &&
           data.messages.length > 0 &&
           data.messages.map((message) => (
             <div key={message.id} className="flex gap-3">
               <Avatar className="mt-3">
                 <AvatarImage
-                  className="border border-border object-contain"
+                  className="border-border border object-contain"
                   src={message.role === "assistant" ? "/logo.svg" : undefined}
                   alt="User profile picture"
                 />
@@ -111,8 +111,8 @@ export default function Chat({ conversationId }: { conversationId: string }) {
                 </AvatarFallback>
               </Avatar>
               <div
-                className={cn("p-3 font-normal text-base", {
-                  "rounded-lg bg-elevation-level1": message.role === "user",
+                className={cn("p-3 text-base font-normal", {
+                  "bg-elevation-level1 rounded-lg": message.role === "user",
                   "": message.role === "assistant",
                 })}
               >
@@ -136,7 +136,7 @@ export default function Chat({ conversationId }: { conversationId: string }) {
               <AvatarImage src="/logo.svg" />
               <AvatarFallback>AI</AvatarFallback>
             </Avatar>
-            <div className="p-3 font-normal text-base rounded-lg bg-bg-level0">
+            <div className="bg-bg-level0 rounded-lg p-3 text-base font-normal">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {aiStream}
               </ReactMarkdown>
@@ -144,9 +144,13 @@ export default function Chat({ conversationId }: { conversationId: string }) {
           </div>
         )}
 
-        <div data-slot="scroll-into-view" ref={messagesEndRef} />
+        <div
+          data-slot="scroll-into-view"
+          className="h-px w-full"
+          ref={messagesEndRef}
+        />
       </div>
-      <div className="h-fit p-3 w-full">
+      <div className="h-fit w-full p-3">
         <ChatInput
           aiThinking={aiThinking}
           aiStreaming={aiStreaming}

@@ -92,13 +92,13 @@ export default function PdfViewer({
   };
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <div className="h-10 px-5 flex gap-4 items-center sticky top-0 z-10 border-b border-b-border bg-bg-base">
-        <span className="text-xs font-medium flex items-center gap-1">
+    <div className="flex h-full w-full flex-col">
+      <div className="border-b-border bg-bg-base sticky top-0 z-10 flex h-10 items-center gap-4 border-b px-5">
+        <span className="flex items-center gap-1 text-xs font-medium">
           Page
           <Input
             value={currentPageProxy}
-            className="w-10 px-2 rounded-sm"
+            className="w-10 rounded-sm px-2"
             size="28"
             onChange={(e) => {
               setCurrentPageProxy(e.target.value);
@@ -118,7 +118,7 @@ export default function PdfViewer({
           />
           of {document.pageCount}
         </span>
-        <div className="flex gap-1 items-center">
+        <div className="flex items-center gap-1">
           <Button
             size="28"
             onClick={() => setScale((s) => Math.max(0.5, s - 0.1))}
