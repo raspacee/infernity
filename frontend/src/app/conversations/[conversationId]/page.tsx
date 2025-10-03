@@ -1,6 +1,7 @@
 "use client";
 
 import Chat from "@/components/conversations/chat";
+import { DocumentContextProvider } from "@/context/DocumentContext";
 import { useSidebarContext } from "@/context/SidebarContext";
 import { useGetConversation } from "@/hooks/conversation/use-get-conversation";
 import { useGetPresignedUrl } from "@/hooks/document/use-get-presigned-url";
@@ -10,7 +11,7 @@ import { useEffect } from "react";
 
 const PDFViewer = dynamic(
   () => import("@/components/conversations/pdf-viewer"),
-  { ssr: false, loading: () => <p>Loading...</p> }
+  { ssr: false, loading: () => <p>Loading...</p> },
 );
 
 export default function Page() {
@@ -19,12 +20,12 @@ export default function Page() {
   const { setIsOpen } = useSidebarContext();
 
   const { data, isPending: isConversationLoading } = useGetConversation(
-    params.conversationId
+    params.conversationId,
   );
 
   const { data: pdf, isPending: isPdfLoading } = useGetPresignedUrl(
     params.conversationId,
-    { enabled: !!data?.conversation.id }
+    { enabled: !!data?.conversation.id },
   );
 
   useEffect(() => {
@@ -32,16 +33,21 @@ export default function Page() {
   }, []);
 
   return (
-    <div className="flex w-full h-full">
-      <div className="border-r h-full border-border flex-1 overflow-auto">
-        {isPdfLoading && <p>Loading...</p>}
-        {pdf && data && (
-          <PDFViewer document={data.document} presignedUrl={pdf.presignedUrl} />
-        )}
+    <DocumentContextProvider>
+      <div className="flex h-full w-full">
+        <div className="border-border h-full flex-1 overflow-auto border-r">
+          {isPdfLoading && <p>Loading...</p>}
+          {pdf && data && (
+            <PDFViewer
+              document={data.document}
+              presignedUrl={pdf.presignedUrl}
+            />
+          )}
+        </div>
+        <div className="flex-1">
+          <Chat conversationId={params.conversationId} />
+        </div>
       </div>
-      <div className="flex-1">
-        <Chat conversationId={params.conversationId} />
-      </div>
-    </div>
+    </DocumentContextProvider>
   );
 }

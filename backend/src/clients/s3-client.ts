@@ -1,4 +1,5 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { v4 as uuid } from "uuid";
 
 interface S3Metadata {
   documentId: string;
@@ -41,6 +42,36 @@ export async function storeFileInS3(
 
     await s3Client.send(command);
     return s3Key;
+  } catch (error) {
+    console.error("Failed to upload file to S3:", error);
+
+    if (error instanceof Error) {
+      throw new Error(`S3 upload failed: ${error.message}`);
+    } else {
+      throw new Error("S3 upload failed: Unknown error");
+    }
+  }
+}
+
+export async function putObject(
+  file: Express.Multer.File,
+  metadata?: S3Metadata
+) {
+  try {
+    const key = `images/${uuid()}`;
+
+    const command = new PutObjectCommand({
+      Bucket: process.env.MINIO_BUCKET_NAME,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+      Metadata: {
+        ...metadata,
+      },
+    });
+
+    await s3Client.send(command);
+    return key;
   } catch (error) {
     console.error("Failed to upload file to S3:", error);
 

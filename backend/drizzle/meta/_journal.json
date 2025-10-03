@@ -64,6 +64,20 @@
       "when": 1757775940142,
       "tag": "0008_married_malice",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1759244821299,
+      "tag": "0009_abandoned_the_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1759500655572,
+      "tag": "0010_noisy_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

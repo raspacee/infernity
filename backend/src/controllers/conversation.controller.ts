@@ -8,6 +8,10 @@ import { MessageService } from "../services/message.service";
 import { aiResponseQueue } from "../jobs/queues/ai-response-queue";
 import { getIO } from "../socket";
 import { AI_STATUS, AI_STATUS_QUEUE_NAME } from "../types/ai-status.types";
+import { putObject, s3Client } from "../clients/s3-client";
+import { AiResponseQueueType } from "../jobs/workers/ai-response-worker";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const conversationService = new ConversationService();
 const messageService = new MessageService();
@@ -86,9 +90,38 @@ export class ConversationController {
     try {
       const { conversationId } = req.params;
 
-      const result = await messageService.getMessages(conversationId);
+      const messages = await messageService.getMessages(conversationId);
 
-      res.status(200).json({ messages: result });
+      const messagesWithURLs = await Promise.all(
+        messages.map(async (msg) => {
+          if (msg.queryImageKey) {
+            try {
+              const command = new GetObjectCommand({
+                Bucket: process.env.MINIO_BUCKET_NAME,
+                Key: msg.queryImageKey,
+              });
+
+              const url = await getSignedUrl(s3Client, command, {
+                expiresIn: 60 * 60,
+              });
+
+              return {
+                ...msg,
+                queryImageURL: url,
+              };
+            } catch (err) {
+              console.error(
+                `Failed to generate signed URL for key ${msg.queryImageKey}`,
+                err
+              );
+              return { ...msg, imageUrl: null };
+            }
+          }
+          return msg;
+        })
+      );
+
+      res.status(200).json({ messages: messagesWithURLs });
     } catch (err) {
       console.error(err);
       res.status(500).json({
@@ -99,6 +132,12 @@ export class ConversationController {
 
   public handleCreateMessage = async (req: Request, res: Response) => {
     try {
+      let queryImageKey: string | null = null;
+
+      if (req.file) {
+        queryImageKey = await putObject(req.file);
+      }
+
       const { content } = req.body;
       const { conversationId } = req.params;
 
@@ -113,6 +152,7 @@ export class ConversationController {
         conversationId,
         role: "user",
         createdAt: new Date().toISOString(),
+        queryImageKey,
       });
 
       const job = await aiResponseQueue.add(
@@ -121,7 +161,8 @@ export class ConversationController {
           userId: req.user!.id,
           conversationId,
           query: content,
-        },
+          queryImageKey,
+        } as AiResponseQueueType,
         {
           attempts: 3,
           backoff: { type: "exponential" },

@@ -1,4 +1,9 @@
-import { HumanMessage, MessageContent } from "@langchain/core/messages";
+import {
+  HumanMessage,
+  HumanMessageFields,
+  MessageContent,
+  MessageContentComplex,
+} from "@langchain/core/messages";
 import { DocumentService } from "../../services/document.service";
 import { llm, systemPrompt } from "../../utils/chat";
 import { aiResponseQueue } from "../queues/ai-response-queue";
@@ -9,14 +14,25 @@ import { AI_STATUS, AI_STATUS_QUEUE_NAME } from "../../types/ai-status.types";
 import { db } from "../../db";
 import { messagesTable } from "../../db/schema";
 import { setupJobCancellationListener } from "../job-cancellation";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const jobControllers = new Map<string, AbortController>();
 setupJobCancellationListener(jobControllers);
 
 const documentService = new DocumentService(s3Client, documentsIndex);
 
+export type AiResponseQueueType = {
+  messageId: number;
+  userId: string;
+  conversationId: string;
+  query: string;
+  queryImageKey: string | null;
+};
+
 aiResponseQueue.process(5, async (job) => {
-  const { userId, conversationId, query } = job.data;
+  const { userId, conversationId, query, queryImageKey } =
+    job.data as AiResponseQueueType;
 
   const io = getEmitter();
 
@@ -40,11 +56,39 @@ aiResponseQueue.process(5, async (job) => {
 
     const contextTextChunks = context.map((item) => item.chunkText);
 
-    const response = await llm.stream(
-      [
-        systemPrompt,
-        new HumanMessage(`Context: ${contextTextChunks}\n\nQuestion: ${query}`),
+    const llmFields: HumanMessageFields = {
+      content: [
+        {
+          type: "text",
+          text: `The context of the query is: ${contextTextChunks}`,
+        },
+        {
+          type: "text",
+          text: `\n\nQuestion: ${query}`,
+        },
       ],
+    };
+
+    if (queryImageKey) {
+      const command = new GetObjectCommand({
+        Bucket: process.env.MINIO_BUCKET_NAME,
+        Key: queryImageKey,
+      });
+
+      const { Body } = await s3Client.send(command);
+      if (Body) {
+        const buffer = Buffer.from(await Body.transformToByteArray());
+        const base64Image = buffer.toString("base64");
+
+        (llmFields.content as MessageContentComplex[]).push({
+          type: "image_url",
+          image_url: { url: `data:image/png;base64,${base64Image}` },
+        });
+      }
+    }
+
+    const response = await llm.stream(
+      [systemPrompt, new HumanMessage(llmFields)],
       { signal: controller.signal }
     );
 

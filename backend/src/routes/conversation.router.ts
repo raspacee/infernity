@@ -43,6 +43,7 @@ router.post(
   "/:conversationId/messages",
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
+  upload.single("image"),
   conversationController.handleCreateMessage
 );
 

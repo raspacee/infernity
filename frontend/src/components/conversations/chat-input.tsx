@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { TextArea } from "../ui/text-area";
-import { IconButton } from "../ui/button";
-import { ArrowUp, Square } from "lucide-react";
+import { CompactButton, IconButton } from "../ui/button";
+import { ArrowUp, Square, X } from "lucide-react";
+import { useDocumentContext } from "@/context/DocumentContext";
 
 export default function ChatInput({
   handleSendMessage,
@@ -9,26 +9,43 @@ export default function ChatInput({
   aiThinking,
   aiStreaming,
 }: {
-  handleSendMessage: (query: string) => Promise<void>;
+  handleSendMessage: () => Promise<void>;
   handleStopStreaming: () => void;
   aiThinking: boolean;
   aiStreaming: boolean;
 }) {
-  const [query, setQuery] = useState("");
+  const { selectedImage, setSelectedImage, chatQuery, setChatQuery } =
+    useDocumentContext();
 
   return (
-    <div className="border rounded-lg border-border px-3 p-2 focus-within:ring focus-within:ring-primary">
+    <div className="border-border focus-within:ring-primary space-y-2 rounded-lg border p-2 px-3 focus-within:ring">
+      {selectedImage && (
+        <div className="relative w-fit">
+          <img
+            src={URL.createObjectURL(selectedImage)}
+            className="bg-black-inverse h-30 w-50 object-contain"
+          />
+          <CompactButton
+            size="20"
+            variant="ghost"
+            color="neutral"
+            className="absolute top-1 right-1 hover:bg-transparent"
+            onClick={() => setSelectedImage(null)}
+          >
+            <X />
+          </CompactButton>
+        </div>
+      )}
       <TextArea
-        className="h-10 drop-shadow-none placeholder:text-base text-base border-none focus:ring-0 p-0"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        className="h-10 border-none p-0 text-base drop-shadow-none placeholder:text-base focus:ring-0"
+        value={chatQuery}
+        onChange={(e) => setChatQuery(e.target.value)}
         placeholder="Ask AI something about your document"
         resizable={false}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && query.trim() !== "") {
+          if (e.key === "Enter" && !e.shiftKey && chatQuery.trim() !== "") {
             e.preventDefault();
-            handleSendMessage(query);
-            setQuery("");
+            handleSendMessage();
           }
         }}
       />
@@ -50,9 +67,8 @@ export default function ChatInput({
           <IconButton
             size="32"
             onClick={() => {
-              if (query.trim() !== "") {
-                handleSendMessage(query);
-                setQuery("");
+              if (chatQuery.trim() !== "") {
+                handleSendMessage();
               }
             }}
           >

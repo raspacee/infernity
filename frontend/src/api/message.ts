@@ -2,14 +2,14 @@ import { Message } from "@/types/message.types";
 import { BASE_API_URL } from ".";
 
 const getMessages = async (
-  conversationId: string
+  conversationId: string,
 ): Promise<{ messages: Message[] }> => {
   const res = await fetch(
     new URL(`/api/conversations/${conversationId}/messages`, BASE_API_URL),
     {
       method: "get",
       credentials: "include",
-    }
+    },
   );
 
   if (!res.ok) {
@@ -23,20 +23,24 @@ const getMessages = async (
 const createMessage = async ({
   conversationId,
   content,
+  image,
 }: {
   conversationId: string;
   content: string;
+  image: Blob | null;
 }): Promise<{ message: Message }> => {
+  const formData = new FormData();
+
+  formData.append("content", content);
+  if (image) formData.append("image", image);
+
   const res = await fetch(
     new URL(`/api/conversations/${conversationId}/messages`, BASE_API_URL),
     {
       method: "post",
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ content }),
-    }
+      body: formData,
+    },
   );
 
   if (!res.ok) {

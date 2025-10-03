@@ -13,6 +13,7 @@ import { getNameInitials } from "@/lib/helpers";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ChatInput from "./chat-input";
+import { useDocumentContext } from "@/context/DocumentContext";
 
 export default function Chat({ conversationId }: { conversationId: string }) {
   const { data: user } = useGetMyInfo();
@@ -20,6 +21,9 @@ export default function Chat({ conversationId }: { conversationId: string }) {
   const { mutateAsync: createMessage } = useCreateMessage();
 
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+
+  const { chatQuery, setChatQuery, selectedImage, setSelectedImage } =
+    useDocumentContext();
 
   /* The status of AI is deliberately represented by two variables instead
    * of one union type variable to combat the glitch of message dissapearing
@@ -85,8 +89,14 @@ export default function Chat({ conversationId }: { conversationId: string }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [aiStream, data]);
 
-  const handleSendMessage = async (query: string) => {
-    createMessage({ conversationId, content: query });
+  const handleSendMessage = async () => {
+    createMessage({
+      conversationId,
+      content: chatQuery,
+      image: selectedImage,
+    });
+    setChatQuery("");
+    setSelectedImage(null);
   };
 
   const handleStopStreaming = () => {
@@ -116,6 +126,12 @@ export default function Chat({ conversationId }: { conversationId: string }) {
                   "": message.role === "assistant",
                 })}
               >
+                {message.queryImageURL && (
+                  <img
+                    src={message.queryImageURL}
+                    className="aspect-[2/1] w-60 object-contain"
+                  />
+                )}
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {message.content}
                 </ReactMarkdown>

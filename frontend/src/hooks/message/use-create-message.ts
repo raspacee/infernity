@@ -30,12 +30,13 @@ export const useCreateMessage = () => {
                 content: variables.content,
                 conversationId: variables.conversationId,
                 createdAt: new Date().toISOString(),
+                queryImageURL: null,
                 model: "openai",
                 role: "user",
               },
             ],
           };
-        }
+        },
       );
 
       return { previousMessages };
@@ -49,7 +50,7 @@ export const useCreateMessage = () => {
       if (context?.previousMessages) {
         queryClient.setQueryData(
           ["conversations", variables.conversationId, "messages"],
-          context.previousMessages
+          context.previousMessages,
         );
       }
     },

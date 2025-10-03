@@ -1,0 +1,1 @@
+ALTER TABLE "messages" RENAME COLUMN "queryImageURL" TO "queryImageKey";

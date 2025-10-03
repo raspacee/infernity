@@ -23,6 +23,7 @@ export class MessageService {
         content: newMessage.content,
         conversationId: newMessage.conversationId,
         role: newMessage.role,
+        queryImageKey: newMessage.queryImageKey,
         createdAt: newMessage.createdAt,
       })
       .returning();

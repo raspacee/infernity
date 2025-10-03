@@ -120,6 +120,8 @@ export const messagesTable = pgTable(
     model: varchar({ length: 100 }),
     content: text().notNull(),
 
+    queryImageKey: text(),
+
     conversationId: uuid()
       .references(() => conversationsTable.id, { onDelete: "cascade" })
       .notNull(),
