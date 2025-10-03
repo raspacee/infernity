@@ -88,9 +88,7 @@ export class AuthController {
         domain: isProduction ? process.env.SITE_DOMAIN : "localhost",
       });
 
-      return res.redirect(
-        new URL("/home", process.env.FRONTEND_URL!).toString()
-      );
+      return res.redirect(new URL("/", process.env.FRONTEND_URL!).toString());
     } catch (err) {
       console.error(err);
       return res.status(500).json(err);
