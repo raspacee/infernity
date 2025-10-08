@@ -38,6 +38,8 @@ export default function PdfViewer({
   const [current, setCurrent] = useState({ x: 0, y: 0 });
   const pagesCanvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
   const [screenshotMode, setScreenshotMode] = useState<boolean>(false);
+  const [selectionPage, setSelectionPage] = useState<number | null>(null);
+
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const { setSelectedImage, setChatQuery } = useDocumentContext();
@@ -126,15 +128,31 @@ export default function PdfViewer({
   const handleMouseDown = (e: React.MouseEvent) => {
     const overlayRect = overlayRef.current?.getBoundingClientRect();
     if (!overlayRect) return;
-    setStart({
-      x: e.clientX - overlayRect.left,
-      y: e.clientY - overlayRect.top,
-    });
-    setCurrent({
-      x: e.clientX - overlayRect.left,
-      y: e.clientY - overlayRect.top,
-    });
+
+    const startX = e.clientX - overlayRect.left;
+    const startY = e.clientY - overlayRect.top;
+
+    setStart({ x: startX, y: startY });
+    setCurrent({ x: startX, y: startY });
     setIsSelecting(true);
+
+    // Decide which page the selection started on (falls back to currentPage)
+    let hitPage: number | null = null;
+    pageRefs.current.forEach((pageEl, pageNum) => {
+      if (!pageEl) return;
+      const r = pageEl.getBoundingClientRect();
+      // check if the mouse down point is inside this page element
+      if (
+        e.clientX >= r.left &&
+        e.clientX <= r.right &&
+        e.clientY >= r.top &&
+        e.clientY <= r.bottom
+      ) {
+        hitPage = pageNum;
+      }
+    });
+
+    setSelectionPage(hitPage ?? currentPage);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -171,38 +189,125 @@ export default function PdfViewer({
   };
 
   const processSelection = (query: string) => {
-    if (!selectionRect) return;
+    if (!selectionRect || !overlayRef.current) return;
 
-    const canvas = pagesCanvasRefs.current.get(currentPage);
-    console.log(canvas);
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const imageData = ctx.getImageData(
-        selectionRect.x,
-        selectionRect.y,
-        selectionRect.width,
-        selectionRect.height,
-      );
+    const overlayRect = overlayRef.current.getBoundingClientRect();
+    const pageNum = selectionPage ?? currentPage;
+    const canvas = pagesCanvasRefs.current.get(pageNum);
+    if (!canvas) return;
 
-      // Create a new canvas to put the selection
+    const canvasRect = canvas.getBoundingClientRect();
+
+    // Compute selection rectangle relative to the canvas (in CSS pixels)
+    const canvasRelLeft = canvasRect.left - overlayRect.left;
+    const canvasRelTop = canvasRect.top - overlayRect.top;
+
+    const selXOnCanvas = selectionRect.x - canvasRelLeft;
+    const selYOnCanvas = selectionRect.y - canvasRelTop;
+
+    // Clip to canvas CSS bounds
+    const clippedX = Math.max(0, selXOnCanvas);
+    const clippedY = Math.max(0, selYOnCanvas);
+    const clippedW = Math.min(
+      selectionRect.width,
+      Math.max(0, canvasRect.width - clippedX),
+    );
+    const clippedH = Math.min(
+      selectionRect.height,
+      Math.max(0, canvasRect.height - clippedY),
+    );
+
+    if (clippedW <= 0 || clippedH <= 0) {
+      // Nothing on this page
+      setSelectionRect(null);
+      setScreenshotMode(false);
+      setSelectionPage(null);
+      return;
+    }
+
+    // Convert CSS-pixel coords to canvas internal pixels
+    const scaleX = canvas.width / canvasRect.width;
+    const scaleY = canvas.height / canvasRect.height;
+
+    const sx = Math.round(clippedX * scaleX);
+    const sy = Math.round(clippedY * scaleY);
+    const sw = Math.round(clippedW * scaleX);
+    const sh = Math.round(clippedH * scaleY);
+
+    // Safety clamp (avoid reading outside canvas)
+    const finalW = Math.min(sw, canvas.width - sx);
+    const finalH = Math.min(sh, canvas.height - sy);
+    if (finalW <= 0 || finalH <= 0) {
+      setSelectionRect(null);
+      setScreenshotMode(false);
+      setSelectionPage(null);
+      return;
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    try {
+      const imageData = ctx.getImageData(sx, sy, finalW, finalH);
+
+      // Put onto a new canvas so we can toBlob it
       const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = selectionRect.width;
-      tempCanvas.height = selectionRect.height;
+      tempCanvas.width = finalW;
+      tempCanvas.height = finalH;
       const tempCtx = tempCanvas.getContext("2d");
       if (!tempCtx) return;
       tempCtx.putImageData(imageData, 0, 0);
+
       tempCanvas.toBlob((blob) => {
-        console.log(blob);
         if (blob) {
           setSelectedImage(blob);
           setChatQuery(query);
         }
       }, "image/png");
+    } catch (err) {
+      // defensive: getImageData can throw if something taints the canvas
+      console.error("Failed to extract image data", err);
     }
+
+    // cleanup selection state
     setSelectionRect(null);
     setScreenshotMode(false);
+    setSelectionPage(null);
   };
+
+  // const processSelection = (query: string) => {
+  //   if (!selectionRect) return;
+
+  //   const canvas = pagesCanvasRefs.current.get(currentPage);
+  //   console.log(canvas);
+  //   if (canvas) {
+  //     const ctx = canvas.getContext("2d");
+  //     if (!ctx) return;
+  //     const imageData = ctx.getImageData(
+  //       selectionRect.x,
+  //       selectionRect.y,
+  //       selectionRect.width,
+  //       selectionRect.height,
+  //     );
+
+  //     // Create a new canvas to put the selection
+  //     const tempCanvas = document.createElement("canvas");
+  //     tempCanvas.width = selectionRect.width;
+  //     tempCanvas.height = selectionRect.height;
+  //     const tempCtx = tempCanvas.getContext("2d");
+  //     if (!tempCtx) return;
+  //     tempCtx.putImageData(imageData, 0, 0);
+  //     tempCanvas.toBlob((blob) => {
+  //       console.log(blob);
+  //       if (blob) {
+  //         setSelectedImage(blob);
+  //         setChatQuery(query);
+  //       }
+  //     }, "image/png");
+  //   }
+  //   setSelectionRect(null);
+  //   setScreenshotMode(false);
+  // };
 
   return (
     <div className="flex h-full w-full flex-col">
