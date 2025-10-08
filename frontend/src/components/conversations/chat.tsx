@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useGetMessages } from "@/hooks/message/use-get-messages";
 import { useCreateMessage } from "@/hooks/message/use-create-message";
 import React, { useEffect, useRef, useState } from "react";
@@ -22,8 +22,7 @@ export default function Chat({ conversationId }: { conversationId: string }) {
 
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
-  const { chatQuery, setChatQuery, selectedImage, setSelectedImage } =
-    useDocumentContext();
+  const { selectedImage, setSelectedImage } = useDocumentContext();
 
   /* The status of AI is deliberately represented by two variables instead
    * of one union type variable to combat the glitch of message dissapearing
@@ -89,14 +88,15 @@ export default function Chat({ conversationId }: { conversationId: string }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [aiStream, data]);
 
-  const handleSendMessage = async () => {
-    createMessage({
-      conversationId,
-      content: chatQuery,
-      image: selectedImage,
-    });
-    setChatQuery("");
-    setSelectedImage(null);
+  const handleSendMessage = async (query: string) => {
+    if (query.trim() !== "") {
+      createMessage({
+        conversationId,
+        content: query,
+        image: selectedImage,
+      });
+      setSelectedImage(null);
+    }
   };
 
   const handleStopStreaming = () => {

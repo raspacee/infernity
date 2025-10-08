@@ -1,5 +1,5 @@
-import { TextArea } from "../ui/text-area";
-import { CompactButton, IconButton } from "../ui/button";
+import { TextArea } from "@/components/ui/text-area";
+import { CompactButton, IconButton } from "@/components/ui/button";
 import { ArrowUp, Square, X } from "lucide-react";
 import { useDocumentContext } from "@/context/DocumentContext";
 
@@ -9,12 +9,12 @@ export default function ChatInput({
   aiThinking,
   aiStreaming,
 }: {
-  handleSendMessage: () => Promise<void>;
+  handleSendMessage: (query: string) => Promise<void>;
   handleStopStreaming: () => void;
   aiThinking: boolean;
   aiStreaming: boolean;
 }) {
-  const { selectedImage, setSelectedImage, chatQuery, setChatQuery } =
+  const { selectedImage, setSelectedImage, chatInputRef } =
     useDocumentContext();
 
   return (
@@ -37,15 +37,19 @@ export default function ChatInput({
         </div>
       )}
       <TextArea
+        ref={chatInputRef}
         className="h-10 border-none p-0 text-base drop-shadow-none placeholder:text-base focus:ring-0"
-        value={chatQuery}
-        onChange={(e) => setChatQuery(e.target.value)}
         placeholder="Ask AI something about your document"
         resizable={false}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && chatQuery.trim() !== "") {
+          if (
+            e.key === "Enter" &&
+            chatInputRef.current != null &&
+            !e.shiftKey
+          ) {
             e.preventDefault();
-            handleSendMessage();
+            handleSendMessage(chatInputRef.current.value);
+            chatInputRef.current.value = "";
           }
         }}
       />
@@ -67,8 +71,9 @@ export default function ChatInput({
           <IconButton
             size="32"
             onClick={() => {
-              if (chatQuery.trim() !== "") {
-                handleSendMessage();
+              if (chatInputRef.current != null) {
+                handleSendMessage(chatInputRef.current.value);
+                chatInputRef.current.value = "";
               }
             }}
           >

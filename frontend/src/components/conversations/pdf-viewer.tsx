@@ -42,7 +42,7 @@ export default function PdfViewer({
 
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const { setSelectedImage, setChatQuery } = useDocumentContext();
+  const { setSelectedImage, chatInputRef } = useDocumentContext();
 
   useEffect(() => {
     if (!pdfLoaded || !scrollContainerRef.current) return;
@@ -261,7 +261,7 @@ export default function PdfViewer({
       tempCanvas.toBlob((blob) => {
         if (blob) {
           setSelectedImage(blob);
-          setChatQuery(query);
+          if (chatInputRef.current) chatInputRef.current.value = query;
         }
       }, "image/png");
     } catch (err) {
@@ -274,40 +274,6 @@ export default function PdfViewer({
     setScreenshotMode(false);
     setSelectionPage(null);
   };
-
-  // const processSelection = (query: string) => {
-  //   if (!selectionRect) return;
-
-  //   const canvas = pagesCanvasRefs.current.get(currentPage);
-  //   console.log(canvas);
-  //   if (canvas) {
-  //     const ctx = canvas.getContext("2d");
-  //     if (!ctx) return;
-  //     const imageData = ctx.getImageData(
-  //       selectionRect.x,
-  //       selectionRect.y,
-  //       selectionRect.width,
-  //       selectionRect.height,
-  //     );
-
-  //     // Create a new canvas to put the selection
-  //     const tempCanvas = document.createElement("canvas");
-  //     tempCanvas.width = selectionRect.width;
-  //     tempCanvas.height = selectionRect.height;
-  //     const tempCtx = tempCanvas.getContext("2d");
-  //     if (!tempCtx) return;
-  //     tempCtx.putImageData(imageData, 0, 0);
-  //     tempCanvas.toBlob((blob) => {
-  //       console.log(blob);
-  //       if (blob) {
-  //         setSelectedImage(blob);
-  //         setChatQuery(query);
-  //       }
-  //     }, "image/png");
-  //   }
-  //   setSelectionRect(null);
-  //   setScreenshotMode(false);
-  // };
 
   return (
     <div className="flex h-full w-full flex-col">

@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 
 interface DocumentContextType {
   selectedImage: Blob | null;
   setSelectedImage: (image: Blob | null) => void;
-  chatQuery: string;
-  setChatQuery: (query: string) => void;
+  chatInputRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
 const DocumentContext = React.createContext<DocumentContextType | null>(null);
@@ -15,11 +14,15 @@ export const DocumentContextProvider = ({
   children: React.ReactNode;
 }) => {
   const [selectedImage, setSelectedImage] = useState<Blob | null>(null);
-  const [chatQuery, setChatQuery] = useState<string>("");
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   return (
     <DocumentContext.Provider
-      value={{ selectedImage, setSelectedImage, chatQuery, setChatQuery }}
+      value={{
+        selectedImage,
+        setSelectedImage,
+        chatInputRef,
+      }}
     >
       {children}
     </DocumentContext.Provider>

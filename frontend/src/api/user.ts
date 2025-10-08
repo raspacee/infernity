@@ -13,6 +13,20 @@ const fetchCurrentUser = async (): Promise<User> => {
   return res.json();
 };
 
+const logout = async () => {
+  const res = await fetch(new URL("/api/auth/logout", BASE_API_URL), {
+    method: "post",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to logout");
+  }
+
+  return res.json();
+};
+
 export const UserApi = {
   fetchCurrentUser,
+  logout,
 };
