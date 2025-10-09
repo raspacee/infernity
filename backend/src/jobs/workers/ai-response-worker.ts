@@ -15,7 +15,6 @@ import { db } from "../../db";
 import { messagesTable } from "../../db/schema";
 import { setupJobCancellationListener } from "../job-cancellation";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const jobControllers = new Map<string, AbortController>();
 setupJobCancellationListener(jobControllers);
@@ -51,6 +50,8 @@ aiResponseQueue.process(5, async (job) => {
       query
     );
 
+    console.log(context);
+
     const t1 = process.hrtime.bigint();
     const contextMs = Number(t1 - t0) / 1_000_000; // convert ns → ms
     console.log(`getNearestChunks took ${contextMs.toFixed(2)} ms`);
@@ -61,7 +62,11 @@ aiResponseQueue.process(5, async (job) => {
       content: [
         {
           type: "text",
-          text: `The context of the query is: ${contextTextChunks}`,
+          text:
+            `You are answering based on the following numbered context chunks:\n\n${context
+              .map((c, i) => `[${i}] ${c.chunkText}`)
+              .join("\n\n")}\n\n` +
+            `When you answer, include at the end of your response a JSON object indicating which chunk numbers were most influential, in the form {"used_chunks": [0, 2, 5]}.`,
         },
         {
           type: "text",

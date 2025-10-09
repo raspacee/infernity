@@ -62,7 +62,7 @@ export class AuthController {
             name: user.name,
             providerId: user.sub,
             provider: "google",
-            avatarUrl: user.picture,
+            avatarUrl: null,
             createdAt: new Date().toISOString(),
           })
           .returning();
