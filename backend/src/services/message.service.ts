@@ -1,4 +1,4 @@
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { db } from "../db";
 import { messagesTable, messagesRoleEnum } from "../db/schema";
 
@@ -28,5 +28,18 @@ export class MessageService {
       })
       .returning();
     return message;
+  }
+
+  public async getLastMessages(
+    conversationId: string,
+    count: number = 10
+  ): Promise<(typeof messagesTable.$inferSelect)[]> {
+    const messages = await db
+      .select()
+      .from(messagesTable)
+      .orderBy(desc(messagesTable.id))
+      .where(eq(messagesTable.conversationId, conversationId))
+      .limit(count);
+    return messages.reverse();
   }
 }

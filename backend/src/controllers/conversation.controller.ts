@@ -147,13 +147,16 @@ export class ConversationController {
         status: "thinking" as AI_STATUS,
       });
 
-      const message = await messageService.createMessage({
-        content,
-        conversationId,
-        role: "user",
-        createdAt: new Date().toISOString(),
-        queryImageKey,
-      });
+      const [message, messagesHistory] = await Promise.all([
+        await messageService.createMessage({
+          content,
+          conversationId,
+          role: "user",
+          createdAt: new Date().toISOString(),
+          queryImageKey,
+        }),
+        await messageService.getLastMessages(conversationId),
+      ]);
 
       const job = await aiResponseQueue.add(
         {
@@ -162,6 +165,7 @@ export class ConversationController {
           conversationId,
           query: content,
           queryImageKey,
+          messagesHistory,
         } as AiResponseQueueType,
         {
           attempts: 3,

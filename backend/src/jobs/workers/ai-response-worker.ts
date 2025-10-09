@@ -28,10 +28,11 @@ export type AiResponseQueueType = {
   conversationId: string;
   query: string;
   queryImageKey: string | null;
+  messagesHistory: (typeof messagesTable.$inferSelect)[];
 };
 
 aiResponseQueue.process(5, async (job) => {
-  const { userId, conversationId, query, queryImageKey } =
+  const { userId, conversationId, query, queryImageKey, messagesHistory } =
     job.data as AiResponseQueueType;
 
   const io = getEmitter();
@@ -65,6 +66,14 @@ aiResponseQueue.process(5, async (job) => {
         {
           type: "text",
           text: `\n\nQuestion: ${query}`,
+        },
+        {
+          type: "text",
+          text: `\n\nPrevious conversation history: ${JSON.stringify(
+            messagesHistory,
+            null,
+            2
+          )}`,
         },
       ],
     };
