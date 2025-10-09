@@ -10,4 +10,6 @@ router.get("/google/callback", authController.handleGoogleOAuthCallback);
 
 router.get("/google", authController.handleGoogleOAuth);
 
+router.post("/logout", authController.handleLogout);
+
 export default router;

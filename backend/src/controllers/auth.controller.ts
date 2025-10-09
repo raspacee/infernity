@@ -94,4 +94,22 @@ export class AuthController {
       return res.status(500).json(err);
     }
   }
+
+  public async handleLogout(req: Request, res: Response) {
+    try {
+      const isProduction = process.env.NODE_ENV === "production";
+
+      res.clearCookie("access_token", {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        domain: isProduction ? process.env.SITE_DOMAIN : "localhost",
+      });
+
+      return res.status(200).json({ message: "Logged out!" });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json(err);
+    }
+  }
 }
