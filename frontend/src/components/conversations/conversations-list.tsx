@@ -1,26 +1,36 @@
 import { useGetUserConversations } from "@/hooks/conversation/use-get-user-conversations";
-import { Skeleton } from "../ui/skeleton";
-import { Button, IconButton } from "../ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { IconButton } from "@/components/ui/button";
 import {
   Dropdown,
   DropdownContent,
+  DropdownDivider,
   DropdownItem,
   DropdownTrigger,
 } from "../ui/dropdown";
-import { EllipsisVertical } from "lucide-react";
+import { EllipsisVertical, FolderPen, Trash2 } from "lucide-react";
 import { DateTime } from "luxon";
 import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import UpdateConversationForm from "./update-conversation-form";
 
 export default function ConversationsList() {
   const { data: result, isLoading, isSuccess } = useGetUserConversations();
+
   const router = useRouter();
 
   if (isLoading)
     return (
       <div className="flex flex-col gap-3 p-4">
-        <Skeleton className="max-w-full h-20" />
-        <Skeleton className="max-w-full h-20" />
-        <Skeleton className="max-w-full h-20" />
+        <Skeleton className="h-20 max-w-full" />
+        <Skeleton className="h-20 max-w-full" />
+        <Skeleton className="h-20 max-w-full" />
       </div>
     );
 
@@ -30,16 +40,16 @@ export default function ConversationsList() {
         result.conversations.map((conversation) => (
           <div
             key={conversation.id}
-            className="flex gap-3 h-20 cursor-pointer border border-border py-3 px-4 rounded-lg items-center"
+            className="border-border flex h-20 cursor-pointer items-center gap-3 rounded-lg border px-4 py-3"
             onClick={() => router.push(`/conversations/${conversation.id}`)}
           >
             <div className="">
-              <p className="text-base font-medium leading-7">
+              <p className="text-base leading-7 font-medium">
                 {conversation.title}
               </p>
               <p className="text-text-tertiary text-sm">
                 {DateTime.fromSQL(conversation.createdAt).toLocaleString(
-                  DateTime.DATE_MED_WITH_WEEKDAY
+                  DateTime.DATE_MED_WITH_WEEKDAY,
                 )}
               </p>
             </div>
@@ -53,9 +63,27 @@ export default function ConversationsList() {
                   <EllipsisVertical />
                 </IconButton>
               </DropdownTrigger>
-              <DropdownContent align="end">
-                <DropdownItem>Rename conversation</DropdownItem>
-                <DropdownItem>Delete</DropdownItem>
+              <DropdownContent align="end" onClick={(e) => e.stopPropagation()}>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <DropdownItem onSelect={(e) => e.preventDefault()}>
+                      <FolderPen />
+                      Rename conversation
+                    </DropdownItem>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Rename Conversation</DialogTitle>
+                    </DialogHeader>
+
+                    <UpdateConversationForm conversation={conversation} />
+                  </DialogContent>
+                </Dialog>
+                <DropdownDivider />
+                <DropdownItem>
+                  <Trash2 />
+                  Delete
+                </DropdownItem>
               </DropdownContent>
             </Dropdown>
           </div>

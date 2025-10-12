@@ -32,6 +32,13 @@ router.get(
   conversationController.handleGetConversation
 );
 
+router.patch(
+  "/:conversationId",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  conversationController.handleUpdateConversation
+);
+
 router.get(
   "/:conversationId/messages",
   AuthMiddleware.validateAccessToken,

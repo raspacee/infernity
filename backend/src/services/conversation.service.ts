@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { conversationsTable, documentsTable } from "../db/schema";
+import { UpdateConversationFields } from "../validators/conversation.validator";
 
 export class ConversationService {
   public getUserConversations = async (userId: string) => {
@@ -47,5 +48,17 @@ export class ConversationService {
       })
       .returning({ id: conversationsTable.id });
     return conversation;
+  };
+
+  public updateConversation = async (
+    conversationId: string,
+    fields: UpdateConversationFields
+  ): Promise<typeof conversationsTable.$inferSelect> => {
+    const [result] = await db
+      .update(conversationsTable)
+      .set(fields)
+      .where(eq(conversationsTable.id, conversationId))
+      .returning();
+    return result;
   };
 }
