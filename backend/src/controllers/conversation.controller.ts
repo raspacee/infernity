@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
 import { v4 as uuid } from "uuid";
 import { DocumentService } from "../services/document.service";
-import { db } from "../db";
-import { conversationsTable } from "../db/schema";
 import { ConversationService } from "../services/conversation.service";
 import { MessageService } from "../services/message.service";
 import { aiResponseQueue } from "../jobs/queues/ai-response-queue";
@@ -13,9 +11,22 @@ import { AiResponseQueueType } from "../jobs/workers/ai-response-worker";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { updateConversationSchema } from "../validators/conversation.validator";
+import { llm, NAMING_LLM_SYSTEM_PROMPT, namingLlm } from "../utils/chat";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { z } from "zod/v3";
 
 const conversationService = new ConversationService();
 const messageService = new MessageService();
+
+const AbstractResponseSchema = z.object({
+  content: z.string().describe("A markdown formatted abstract text."),
+  followupQuestions: z
+    .string()
+    .describe("A markdown formatted list of followup questions."),
+  conversationTitle: z
+    .string()
+    .describe("The suggested title for the conversation session."),
+});
 
 export class ConversationController {
   constructor(private documentService: DocumentService) {
@@ -31,7 +42,7 @@ export class ConversationController {
 
       const conversation = await conversationService.createConversation({
         id: uuid(),
-        title: "New Conversation",
+        title: "Untitled Conversation",
         userId: req.user!.id,
         createdAt: new Date().toISOString(),
       });
@@ -41,6 +52,58 @@ export class ConversationController {
         conversationId: conversation.id,
         userId: req.user!.id,
       });
+
+      const pdf = result.parsedPdf;
+      let textForSummary = "";
+      // If document is less than 15 pages, feed whole document for summary
+      if (pdf.totalPages <= 15) {
+        pdf.pages.map((page) => (textForSummary += page.text));
+      } else {
+        // Else, Feed first 10 and last 5 pages for summary
+        for (let i = 0; i < 10; i++) {
+          textForSummary += pdf.pages[i].text;
+        }
+        for (let i = pdf.totalPages - 5; i < pdf.totalPages; i++) {
+          textForSummary += pdf.pages[i].text;
+        }
+      }
+
+      const summary = await llm.invoke([
+        new SystemMessage(`You are a document analysis assistant.
+      Your task is to generate a concise, factual summary of a document based on the provided text excerpts.
+      Summarize key ideas, objectives, and conclusions while removing filler, repetition, or citations.
+      If the document seems incomplete, infer structure cautiously and note possible missing sections (e.g., “conclusion not included”).
+      Do not invent facts.
+      Do not reference “the user” or “this document” directly; instead, write in a neutral, academic tone.
+      Target summary length: 200–300 words unless otherwise specified.
+
+      After the summary, provide an ordered list of 5 insightful questions the user might consider asking about the document’s content, implications, or next steps.
+      These questions should promote deeper understanding or critical thinking, not surface-level details. Give the title inside <title> tags.
+      For example: <title>How transformers work in LLM</title>
+      `),
+        new HumanMessage(textForSummary),
+      ]);
+      const title = (summary.content as string).match(/<title>(.*?)<\/title>/i);
+      const tasks: Object[] = [
+        await messageService.createMessage({
+          content: (summary.content as string).replace(
+            /<title>(.*?)<\/title>/i,
+            ""
+          ),
+          conversationId: conversation.id,
+          createdAt: new Date().toISOString(),
+          role: "assistant",
+        }),
+      ];
+      if (title && title[1].length > 0) {
+        tasks.push(
+          await conversationService.updateConversation(conversation.id, {
+            title: title[1],
+          })
+        );
+      }
+
+      await Promise.all(tasks);
 
       res.status(201).json({
         documentId: result.documentId,
@@ -158,6 +221,22 @@ export class ConversationController {
         }),
         await messageService.getLastMessages(conversationId),
       ]);
+
+      if (messagesHistory.length === 0) {
+        const title = await namingLlm.invoke([
+          new SystemMessage(NAMING_LLM_SYSTEM_PROMPT),
+          new HumanMessage(
+            "You are a model used to exclusively give title to a conversation session. You will be a user query based on that give the title."
+          ),
+        ]);
+        conversationService
+          .updateConversation(conversationId, {
+            title: title.content as string,
+          })
+          .catch((err) =>
+            console.error("Failed to update conversation title: ", err)
+          );
+      }
 
       const job = await aiResponseQueue.add(
         {

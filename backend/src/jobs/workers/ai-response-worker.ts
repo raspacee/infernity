@@ -56,8 +56,6 @@ aiResponseQueue.process(5, async (job) => {
     const contextMs = Number(t1 - t0) / 1_000_000; // convert ns → ms
     console.log(`getNearestChunks took ${contextMs.toFixed(2)} ms`);
 
-    const contextTextChunks = context.map((item) => item.chunkText);
-
     const llmFields: HumanMessageFields = {
       content: [
         {

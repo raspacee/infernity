@@ -22,7 +22,8 @@ export default function Chat({ conversationId }: { conversationId: string }) {
 
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
-  const { selectedImage, setSelectedImage } = useDocumentContext();
+  const { selectedImage, setSelectedImage, chatInputRef } =
+    useDocumentContext();
 
   /* The status of AI is deliberately represented by two variables instead
    * of one union type variable to combat the glitch of message dissapearing
@@ -103,12 +104,33 @@ export default function Chat({ conversationId }: { conversationId: string }) {
     socket?.emit("cancel-job", currentJobId);
   };
 
+  const components = {
+    li: ({ children, ...props }: { children?: React.ReactNode }) => {
+      const text = children?.toString() || "";
+      const isQuestion = text.trim().endsWith("?");
+
+      if (isQuestion)
+        return (
+          <li
+            onClick={() => {
+              if (chatInputRef.current) chatInputRef.current.value = text;
+            }}
+            className="hover:border-primary hover:bg-primary/10 cursor-pointer rounded border-l-4 border-transparent p-2 transition-colors duration-200"
+          >
+            {children}
+          </li>
+        );
+
+      return <li {...props}>{children}</li>;
+    },
+  };
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {data &&
           data.messages.length > 0 &&
-          data.messages.map((message) => (
+          data.messages.map((message, idx) => (
             <div key={message.id} className="flex gap-3">
               <Avatar className="mt-3">
                 <AvatarImage
@@ -132,7 +154,10 @@ export default function Chat({ conversationId }: { conversationId: string }) {
                     className="aspect-[2/1] w-60 object-contain"
                   />
                 )}
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={idx === 0 ? components : {}}
+                >
                   {message.content}
                 </ReactMarkdown>
               </div>

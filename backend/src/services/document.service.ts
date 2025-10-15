@@ -2,7 +2,7 @@ import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { v4 as uuid } from "uuid";
 import { db } from "../db";
 import { documentChunksTable, documentsTable } from "../db/schema";
-import { parsePdf } from "../utils/pdf";
+import { ParsedPdf, parsePdf } from "../utils/pdf";
 import { Chunk, createChunksWithPageMerging } from "../utils/chunks";
 import {
   createEmbeddings,
@@ -26,6 +26,7 @@ interface UploadDocumentParams {
 
 interface DocumentProcessingResult {
   documentId: string;
+  parsedPdf: ParsedPdf;
 }
 
 export class DocumentService {
@@ -88,7 +89,7 @@ export class DocumentService {
       .set({ processingStatus: "completed" })
       .where(eq(documentsTable.id, documentId));
 
-    return { documentId };
+    return { documentId, parsedPdf };
   }
 
   /**

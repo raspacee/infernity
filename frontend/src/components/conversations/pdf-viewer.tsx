@@ -352,6 +352,7 @@ export default function PdfViewer({
               className="mb-2"
             >
               <Page
+                key={`page_${i + 1}`}
                 pageNumber={i + 1}
                 scale={scale}
                 onRenderSuccess={() => {
