@@ -1,5 +1,5 @@
 "use client";
-import { Document as PdfDocument, Page, pdfjs } from "react-pdf";
+import { pdfjs, Document, Page } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { type Document as DocumentT } from "@/types/document.types";
@@ -331,7 +331,7 @@ export default function PdfViewer({
         ref={scrollContainerRef}
         className="relative max-w-full flex-1 overflow-auto"
       >
-        <PdfDocument
+        <Document
           file={presignedUrl}
           onLoadSuccess={() => {
             console.log("loaded");
@@ -427,7 +427,7 @@ export default function PdfViewer({
               </>
             )}
           </div>
-        </PdfDocument>
+        </Document>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { conversationsTable, documentsTable } from "../db/schema";
 import { UpdateConversationFields } from "../validators/conversation.validator";
@@ -8,7 +8,8 @@ export class ConversationService {
     const conversations = await db
       .select()
       .from(conversationsTable)
-      .where(eq(conversationsTable.userId, userId));
+      .where(eq(conversationsTable.userId, userId))
+      .orderBy(desc(conversationsTable.createdAt));
     return conversations;
   };
 

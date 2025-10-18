@@ -13,20 +13,9 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { updateConversationSchema } from "../validators/conversation.validator";
 import { llm, NAMING_LLM_SYSTEM_PROMPT, namingLlm } from "../utils/chat";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { z } from "zod/v3";
 
 const conversationService = new ConversationService();
 const messageService = new MessageService();
-
-const AbstractResponseSchema = z.object({
-  content: z.string().describe("A markdown formatted abstract text."),
-  followupQuestions: z
-    .string()
-    .describe("A markdown formatted list of followup questions."),
-  conversationTitle: z
-    .string()
-    .describe("The suggested title for the conversation session."),
-});
 
 export class ConversationController {
   constructor(private documentService: DocumentService) {
