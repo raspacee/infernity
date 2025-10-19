@@ -1,17 +1,45 @@
 "use client";
-import { pdfjs, Document, Page } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
+import {
+  PdfHighlighter,
+  PdfLoader,
+  IHighlight,
+  NewHighlight,
+  AreaHighlight,
+  ScaledPosition,
+  Content,
+  Popup,
+  Highlight,
+} from "react-pdf-highlighter";
 import { type Document as DocumentT } from "@/types/document.types";
-import { Button, ButtonGroup, IconButton } from "../ui/button";
-import React, { useEffect, useRef, useState } from "react";
-import { Crop, ZoomIn, ZoomOut } from "lucide-react";
+import { Button, IconButton } from "../ui/button";
+import React, { useRef, useState } from "react";
+import { ZoomIn, ZoomOut } from "lucide-react";
 import { Input } from "../ui/input";
-import { Toggle } from "../ui/toggle";
-import { cn } from "@/lib/utils";
-import { useDocumentContext } from "@/context/DocumentContext";
+import { Spinner } from "../ui/spinner";
+import { useCallback } from "react";
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+import "react-pdf-highlighter/dist/style.css";
+import PdfActionButtons from "./pdf-action-buttons";
+
+const getNextId = () => String(Math.random()).slice(2);
+
+const parseIdFromHash = () =>
+  document.location.hash.slice("#highlight-".length);
+
+const resetHash = () => {
+  document.location.hash = "";
+};
+
+const HighlightPopup = ({
+  comment,
+}: {
+  comment: { text: string; emoji: string };
+}) =>
+  comment.text ? (
+    <div className="Highlight__popup">
+      {comment.emoji} {comment.text}
+    </div>
+  ) : null;
 
 export default function PdfViewer({
   presignedUrl,
@@ -21,259 +49,74 @@ export default function PdfViewer({
   presignedUrl: string;
 }) {
   const [scale, setScale] = useState(1);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [currentPageProxy, setCurrentPageProxy] = useState("1");
-  const [pdfLoaded, setPdfLoaded] = useState(false);
+  const [currentPage, setCurrentPage] = useState("1");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selectionRect, setSelectionRect] = useState<{
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null>(null);
-  const [start, setStart] = useState({ x: 0, y: 0 });
-  const [current, setCurrent] = useState({ x: 0, y: 0 });
-  const pagesCanvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
-  const [screenshotMode, setScreenshotMode] = useState<boolean>(false);
-  const [selectionPage, setSelectionPage] = useState<number | null>(null);
+  const [highlights, setHighlights] = useState<Array<IHighlight>>([]);
 
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const scrollViewerTo = useRef((highlight: IHighlight) => {});
 
-  const { setSelectedImage, chatInputRef } = useDocumentContext();
-
-  useEffect(() => {
-    if (!pdfLoaded || !scrollContainerRef.current) return;
-
-    let debounceTimer: NodeJS.Timeout;
-
-    const handleScroll = () => {
-      clearTimeout(debounceTimer);
-
-      debounceTimer = setTimeout(() => {
-        if (!scrollContainerRef.current) return;
-
-        const container = scrollContainerRef.current;
-        const scrollTop = container.scrollTop;
-        const containerHeight = container.clientHeight;
-        const scrollCenter = scrollTop + containerHeight / 2;
-
-        let closestPage = 1;
-        let closestDistance = Infinity;
-
-        pageRefs.current.forEach((pageElement, pageNumber) => {
-          if (pageElement) {
-            const rect = pageElement.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-
-            // Calculate page position relative to container
-            const pageTop = rect.top - containerRect.top + scrollTop;
-            const pageHeight = rect.height;
-            const pageCenter = pageTop + pageHeight / 2;
-
-            const distance = Math.abs(scrollCenter - pageCenter);
-
-            if (distance < closestDistance) {
-              closestDistance = distance;
-              closestPage = pageNumber;
-            }
-          }
-        });
-
-        if (closestPage !== currentPage) {
-          setCurrentPage(closestPage);
-          setCurrentPageProxy(closestPage.toString());
-        }
-      }, 50);
-    };
-
-    const container = scrollContainerRef.current;
-    container.addEventListener("scroll", handleScroll);
-
-    // Initial calculation
-    handleScroll();
-
-    return () => {
-      clearTimeout(debounceTimer);
-      container.removeEventListener("scroll", handleScroll);
-    };
-  }, [pdfLoaded, currentPage]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsSelecting(false);
-        setSelectionRect(null);
-        setCurrent({ x: 0, y: 0 });
-        setStart({ x: 0, y: 0 });
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+  const scrollToHighlightFromHash = useCallback(() => {
+    const highlight = getHighlightById(parseIdFromHash());
+    if (highlight) {
+      scrollViewerTo.current(highlight);
+    }
   }, []);
 
-  const scrollToPage = (pageNumber: number) => {
-    const pageElement = pageRefs.current.get(pageNumber);
-    if (pageElement && scrollContainerRef.current) {
-      pageElement.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
+  const getHighlightById = (id: string) => {
+    return highlights.find((highlight) => highlight.id === id);
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    const overlayRect = overlayRef.current?.getBoundingClientRect();
-    if (!overlayRect) return;
-
-    const startX = e.clientX - overlayRect.left;
-    const startY = e.clientY - overlayRect.top;
-
-    setStart({ x: startX, y: startY });
-    setCurrent({ x: startX, y: startY });
-    setIsSelecting(true);
-
-    // Decide which page the selection started on (falls back to currentPage)
-    let hitPage: number | null = null;
-    pageRefs.current.forEach((pageEl, pageNum) => {
-      if (!pageEl) return;
-      const r = pageEl.getBoundingClientRect();
-      // check if the mouse down point is inside this page element
-      if (
-        e.clientX >= r.left &&
-        e.clientX <= r.right &&
-        e.clientY >= r.top &&
-        e.clientY <= r.bottom
-      ) {
-        hitPage = pageNum;
-      }
-    });
-
-    setSelectionPage(hitPage ?? currentPage);
+  const addHighlight = (highlight: NewHighlight) => {
+    console.log("Saving highlight", highlight);
+    setHighlights((prevHighlights) => [
+      { ...highlight, id: getNextId() },
+      ...prevHighlights,
+    ]);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isSelecting) return;
-    const overlayRect = overlayRef.current?.getBoundingClientRect();
-    if (!overlayRect) return;
-    setCurrent({
-      x: e.clientX - overlayRect.left,
-      y: e.clientY - overlayRect.top,
-    });
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    setIsSelecting(false);
-
-    const overlayRect = overlayRef.current?.getBoundingClientRect();
-    if (!overlayRect) return;
-    const endX = e.clientX - overlayRect.left;
-    const endY = e.clientY - overlayRect.top;
-
-    const selection = {
-      x: Math.min(endX, start.x),
-      y: Math.min(endY, start.y),
-      width: Math.abs(endX - start.x),
-      height: Math.abs(endY - start.y),
-    };
-
-    if (selection.width > 2 && selection.height > 2) {
-      setSelectionRect(selection);
-    } else {
-      setSelectionRect(null);
-      setScreenshotMode(false);
-    }
-  };
-
-  const processSelection = (query: string) => {
-    if (!selectionRect || !overlayRef.current) return;
-
-    const overlayRect = overlayRef.current.getBoundingClientRect();
-    const pageNum = selectionPage ?? currentPage;
-    const canvas = pagesCanvasRefs.current.get(pageNum);
-    if (!canvas) return;
-
-    const canvasRect = canvas.getBoundingClientRect();
-
-    // Compute selection rectangle relative to the canvas (in CSS pixels)
-    const canvasRelLeft = canvasRect.left - overlayRect.left;
-    const canvasRelTop = canvasRect.top - overlayRect.top;
-
-    const selXOnCanvas = selectionRect.x - canvasRelLeft;
-    const selYOnCanvas = selectionRect.y - canvasRelTop;
-
-    // Clip to canvas CSS bounds
-    const clippedX = Math.max(0, selXOnCanvas);
-    const clippedY = Math.max(0, selYOnCanvas);
-    const clippedW = Math.min(
-      selectionRect.width,
-      Math.max(0, canvasRect.width - clippedX),
+  const updateHighlight = (
+    highlightId: string,
+    position: Partial<ScaledPosition>,
+    content: Partial<Content>,
+  ) => {
+    setHighlights((prevHighlights) =>
+      prevHighlights.map((h) => {
+        const {
+          id,
+          position: originalPosition,
+          content: originalContent,
+          ...rest
+        } = h;
+        return id === highlightId
+          ? {
+              id,
+              position: { ...originalPosition, ...position },
+              content: { ...originalContent, ...content },
+              ...rest,
+            }
+          : h;
+      }),
     );
-    const clippedH = Math.min(
-      selectionRect.height,
-      Math.max(0, canvasRect.height - clippedY),
-    );
-
-    if (clippedW <= 0 || clippedH <= 0) {
-      // Nothing on this page
-      setSelectionRect(null);
-      setScreenshotMode(false);
-      setSelectionPage(null);
-      return;
-    }
-
-    // Convert CSS-pixel coords to canvas internal pixels
-    const scaleX = canvas.width / canvasRect.width;
-    const scaleY = canvas.height / canvasRect.height;
-
-    const sx = Math.round(clippedX * scaleX);
-    const sy = Math.round(clippedY * scaleY);
-    const sw = Math.round(clippedW * scaleX);
-    const sh = Math.round(clippedH * scaleY);
-
-    // Safety clamp (avoid reading outside canvas)
-    const finalW = Math.min(sw, canvas.width - sx);
-    const finalH = Math.min(sh, canvas.height - sy);
-    if (finalW <= 0 || finalH <= 0) {
-      setSelectionRect(null);
-      setScreenshotMode(false);
-      setSelectionPage(null);
-      return;
-    }
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    try {
-      const imageData = ctx.getImageData(sx, sy, finalW, finalH);
-
-      // Put onto a new canvas so we can toBlob it
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = finalW;
-      tempCanvas.height = finalH;
-      const tempCtx = tempCanvas.getContext("2d");
-      if (!tempCtx) return;
-      tempCtx.putImageData(imageData, 0, 0);
-
-      tempCanvas.toBlob((blob) => {
-        if (blob) {
-          setSelectedImage(blob);
-          if (chatInputRef.current) chatInputRef.current.value = query;
-        }
-      }, "image/png");
-    } catch (err) {
-      // defensive: getImageData can throw if something taints the canvas
-      console.error("Failed to extract image data", err);
-    }
-
-    // cleanup selection state
-    setSelectionRect(null);
-    setScreenshotMode(false);
-    setSelectionPage(null);
   };
+
+  React.useEffect(() => {
+    const pageNum = parseInt(currentPage);
+    if (!scrollContainerRef.current || isNaN(pageNum)) return;
+
+    const target = scrollContainerRef.current.querySelector(
+      `[data-page-number="${pageNum}"]`,
+    ) as HTMLElement | null;
+
+    console.log(target);
+
+    if (!target) return;
+
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [currentPage]);
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -281,23 +124,16 @@ export default function PdfViewer({
         <span className="flex items-center gap-1 text-xs font-medium">
           Page
           <Input
-            value={currentPageProxy}
+            value={currentPage}
             className="w-10 rounded-sm px-2"
             size="28"
             onChange={(e) => {
-              setCurrentPageProxy(e.target.value);
+              setCurrentPage(e.target.value);
             }}
             onBlur={() => {
-              if (
-                currentPageProxy === "" ||
-                parseInt(currentPageProxy) < 0 ||
-                parseInt(currentPageProxy) > pdfDocument.pageCount
-              )
-                setCurrentPageProxy(currentPage.toString());
-              else {
-                setCurrentPage(parseInt(currentPageProxy));
-                scrollToPage(parseInt(currentPageProxy));
-              }
+              if (parseInt(currentPage) < 0) setCurrentPage("0");
+              else if (parseInt(currentPage) > pdfDocument.pageCount)
+                setCurrentPage(`${pdfDocument.pageCount}`);
             }}
           />
           of {pdfDocument.pageCount}
@@ -322,112 +158,81 @@ export default function PdfViewer({
           >
             <ZoomIn size={20} />
           </IconButton>
-          <Toggle pressed={screenshotMode} onPressedChange={setScreenshotMode}>
-            <Crop className="text-fg-secondary size-4" />
-          </Toggle>
         </div>
       </div>
-      <div
-        ref={scrollContainerRef}
-        className="relative max-w-full flex-1 overflow-auto"
-      >
-        <Document
-          file={presignedUrl}
-          onLoadSuccess={() => {
-            console.log("loaded");
-            setPdfLoaded(true);
-          }}
-          onLoadError={() => console.log("error")}
-          className="relative z-0"
-        >
-          {Array.from({ length: pdfDocument.pageCount }).map((_, i) => (
-            <div
-              key={i + 1}
-              ref={(el) => {
-                if (el) {
-                  pageRefs.current.set(i + 1, el);
-                }
+      <div ref={scrollContainerRef} className="relative flex-1 overflow-auto">
+        <PdfLoader url={presignedUrl} beforeLoad={<Spinner />}>
+          {(pdfDocument) => (
+            <PdfHighlighter
+              key={scale}
+              pdfDocument={pdfDocument}
+              pdfScaleValue={scale.toString()}
+              enableAreaSelection={(event) => event.altKey}
+              onScrollChange={resetHash}
+              scrollRef={(scrollTo) => {
+                scrollViewerTo.current = scrollTo;
+                scrollToHighlightFromHash();
               }}
-              data-page={i + 1}
-              className="mb-2"
-            >
-              <Page
-                key={`page_${i + 1}`}
-                pageNumber={i + 1}
-                scale={scale}
-                onRenderSuccess={() => {
-                  // Trigger observer setup after pages render
-                  if (i === 0) {
-                    // Only trigger on first page to avoid multiple calls
-                    setTimeout(() => setPdfLoaded(true), 100);
-                  }
-                }}
-                canvasRef={(canvas) => {
-                  if (canvas) {
-                    pagesCanvasRefs.current.set(i + 1, canvas);
-                  } else {
-                    pagesCanvasRefs.current.delete(i + 1);
-                  }
-                }}
-              />
-            </div>
-          ))}
-          <div
-            ref={overlayRef}
-            className={cn("absolute inset-0", {
-              "pointer-events-none z-0": !screenshotMode,
-              "pointer-events-auto z-20 cursor-crosshair": screenshotMode,
-            })}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-          >
-            {isSelecting && (
-              <div
-                className="absolute border-2 border-blue-500 bg-blue-200/30"
-                style={{
-                  left: Math.min(start.x, current.x),
-                  top: Math.min(start.y, current.y),
-                  width: Math.abs(current.x - start.x),
-                  height: Math.abs(current.y - start.y),
-                }}
-              />
-            )}
-            {selectionRect && (
-              <>
-                <div
-                  className="absolute border-2 border-blue-500 bg-blue-200/30"
-                  style={{
-                    left: selectionRect.x,
-                    top: selectionRect.y,
-                    width: selectionRect.width,
-                    height: selectionRect.height,
-                    pointerEvents: "none",
-                  }}
+              onSelectionFinished={(
+                position,
+                content,
+                hideTipAndSelection,
+                transformSelection,
+              ) => (
+                <PdfActionButtons
+                  position={position}
+                  content={content}
+                  hideTipAndSelection={hideTipAndSelection}
                 />
-                <div
-                  className="absolute z-50 flex"
-                  style={{ left: selectionRect.x, top: selectionRect.y - 40 }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onMouseUp={(e) => e.stopPropagation()}
-                >
-                  <ButtonGroup
-                    color="neutral"
-                    size="32"
-                    className="hover:bg-fill1"
+              )}
+              highlightTransform={(
+                highlight,
+                index,
+                setTip,
+                hideTip,
+                viewportToScaled,
+                screenshot,
+                isScrolledTo,
+              ) => {
+                const isTextHighlight = !highlight.content?.image;
+
+                const component = isTextHighlight ? (
+                  <Highlight
+                    isScrolledTo={isScrolledTo}
+                    position={highlight.position}
+                    comment={highlight.comment}
+                  />
+                ) : (
+                  <AreaHighlight
+                    isScrolledTo={isScrolledTo}
+                    highlight={highlight}
+                    onChange={(boundingRect) => {
+                      updateHighlight(
+                        highlight.id,
+                        { boundingRect: viewportToScaled(boundingRect) },
+                        { image: screenshot(boundingRect) },
+                      );
+                    }}
+                  />
+                );
+
+                return (
+                  <Popup
+                    popupContent={<HighlightPopup {...highlight} />}
+                    onMouseOver={(popupContent) =>
+                      setTip(highlight, (highlight) => popupContent)
+                    }
+                    onMouseOut={hideTip}
+                    key={index}
                   >
-                    <Button onClick={() => processSelection("Explain")}>
-                      Explain
-                    </Button>
-                    <Button onClick={() => processSelection("Summarize")}>
-                      Summarize
-                    </Button>
-                  </ButtonGroup>
-                </div>
-              </>
-            )}
-          </div>
-        </Document>
+                    {component}
+                  </Popup>
+                );
+              }}
+              highlights={highlights}
+            />
+          )}
+        </PdfLoader>
       </div>
     </div>
   );
