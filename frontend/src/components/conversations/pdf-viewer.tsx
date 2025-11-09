@@ -12,7 +12,7 @@ import {
 } from "react-pdf-highlighter";
 import { type Document as DocumentT } from "@/types/document.types";
 import { Button, IconButton } from "../ui/button";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ZoomIn, ZoomOut } from "lucide-react";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
@@ -20,8 +20,7 @@ import { useCallback } from "react";
 
 import "react-pdf-highlighter/dist/style.css";
 import PdfActionButtons from "./pdf-action-buttons";
-
-const getNextId = () => String(Math.random()).slice(2);
+import { useDocumentContext } from "@/context/DocumentContext";
 
 const parseIdFromHash = () =>
   document.location.hash.slice("#highlight-".length);
@@ -52,27 +51,31 @@ export default function PdfViewer({
   const [currentPage, setCurrentPage] = useState("1");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const [highlights, setHighlights] = useState<Array<IHighlight>>([]);
+  const { highlights, setHighlights } = useDocumentContext();
 
   const scrollViewerTo = useRef((highlight: IHighlight) => {});
 
   const scrollToHighlightFromHash = useCallback(() => {
     const highlight = getHighlightById(parseIdFromHash());
+    console.log("h", highlight);
     if (highlight) {
       scrollViewerTo.current(highlight);
     }
   }, []);
 
+  useEffect(() => {
+    window.addEventListener("hashchange", scrollToHighlightFromHash, false);
+    return () => {
+      window.removeEventListener(
+        "hashchange",
+        scrollToHighlightFromHash,
+        false,
+      );
+    };
+  }, [scrollToHighlightFromHash]);
+
   const getHighlightById = (id: string) => {
     return highlights.find((highlight) => highlight.id === id);
-  };
-
-  const addHighlight = (highlight: NewHighlight) => {
-    console.log("Saving highlight", highlight);
-    setHighlights((prevHighlights) => [
-      { ...highlight, id: getNextId() },
-      ...prevHighlights,
-    ]);
   };
 
   const updateHighlight = (
@@ -164,7 +167,7 @@ export default function PdfViewer({
         <PdfLoader url={presignedUrl} beforeLoad={<Spinner />}>
           {(pdfDocument) => (
             <PdfHighlighter
-              key={scale}
+              key={`${scale}`}
               pdfDocument={pdfDocument}
               pdfScaleValue={scale.toString()}
               enableAreaSelection={(event) => event.altKey}

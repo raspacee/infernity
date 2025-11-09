@@ -1,0 +1,1 @@
+ALTER TABLE "chunkBoxPosition" ADD COLUMN "pageNo" integer;

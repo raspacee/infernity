@@ -7,3 +7,22 @@ export type Message = {
   conversationId: string;
   createdAt: string;
 };
+
+export type MessageWithAnnotations = Message & {
+  annotations: {
+    chunkId: string;
+    annotations: ChunkBoxPosition[];
+  }[];
+};
+
+export type ChunkBoxPosition = {
+  id: string;
+  chunkId: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  width: number;
+  height: number;
+  pageNo: number;
+};

@@ -1,6 +1,6 @@
 import { FeatureExtractionPipeline, pipeline } from "@xenova/transformers";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { Chunk } from "./chunks";
+import { Chunk } from "./pdf-parser";
 
 let extractor: FeatureExtractionPipeline;
 
@@ -13,17 +13,17 @@ async function initializeExtractor() {
   }
 }
 
-export type EmbeddingWithText = {
+export type EmbeddingWithChunk = {
   values: number[];
   chunk: Chunk;
 };
 
 export async function getEmbeddings(
   chunks: Chunk[]
-): Promise<EmbeddingWithText[]> {
+): Promise<EmbeddingWithChunk[]> {
   await initializeExtractor();
 
-  const embeddings: EmbeddingWithText[] = [];
+  const embeddings: EmbeddingWithChunk[] = [];
 
   for (const chunk of chunks) {
     const output = await extractor(chunk.text, {
@@ -46,7 +46,7 @@ export const openaiembeddings = new OpenAIEmbeddings({
 
 export async function createEmbeddings(
   chunks: Chunk[]
-): Promise<EmbeddingWithText[]> {
+): Promise<EmbeddingWithChunk[]> {
   const texts = chunks.map((chunk) => chunk.text);
   const embeddings = await openaiembeddings.embedDocuments(texts);
   return embeddings.map(
@@ -54,6 +54,6 @@ export async function createEmbeddings(
       ({
         values: embedding,
         chunk: chunks[index],
-      } as EmbeddingWithText)
+      } as EmbeddingWithChunk)
   );
 }

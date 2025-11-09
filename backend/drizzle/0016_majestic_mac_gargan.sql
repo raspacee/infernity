@@ -1,0 +1,1 @@
+ALTER TABLE "chunkBoxPositionToMessageMapping" ALTER COLUMN "chunkBoxPositionId" SET NOT NULL;

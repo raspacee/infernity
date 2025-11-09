@@ -41,6 +41,7 @@ export default function PdfActionButtons({
   }, [onUpdate]);
 
   const handleAction = (action: "Explain" | "Summarize") => {
+    console.log(position);
     if (chatInputRef.current && content.text) {
       chatInputRef.current.value = `${action}: ${content.text}`;
     } else if (chatInputRef.current && content.image) {

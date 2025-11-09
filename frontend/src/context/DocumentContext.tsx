@@ -1,9 +1,13 @@
 import React, { useRef, useState } from "react";
+import { IHighlight } from "react-pdf-highlighter";
 
 interface DocumentContextType {
   selectedImage: Blob | null;
   setSelectedImage: (image: Blob | null) => void;
   chatInputRef: React.RefObject<HTMLTextAreaElement | null>;
+  highlights: Array<IHighlight>;
+  setHighlights: React.Dispatch<React.SetStateAction<IHighlight[]>>;
+  scrollViewerTo: React.RefObject<(highlight: IHighlight) => void>;
 }
 
 const DocumentContext = React.createContext<DocumentContextType | null>(null);
@@ -14,7 +18,10 @@ export const DocumentContextProvider = ({
   children: React.ReactNode;
 }) => {
   const [selectedImage, setSelectedImage] = useState<Blob | null>(null);
+  const [highlights, setHighlights] = useState<Array<IHighlight>>([]);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const scrollViewerTo = useRef((highlight: IHighlight) => {});
 
   return (
     <DocumentContext.Provider
@@ -22,6 +29,9 @@ export const DocumentContextProvider = ({
         selectedImage,
         setSelectedImage,
         chatInputRef,
+        highlights,
+        setHighlights,
+        scrollViewerTo,
       }}
     >
       {children}

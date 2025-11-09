@@ -12,7 +12,10 @@ import { documentsIndex } from "../../clients/pinecone-client";
 import { getEmitter } from "../emitter";
 import { AI_STATUS, AI_STATUS_QUEUE_NAME } from "../../types/ai-status.types";
 import { db } from "../../db";
-import { messagesTable } from "../../db/schema";
+import {
+  chunkBoxPositionToMessageMappingTable,
+  messagesTable,
+} from "../../db/schema";
 import { setupJobCancellationListener } from "../job-cancellation";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 
@@ -50,7 +53,7 @@ aiResponseQueue.process(5, async (job) => {
       query
     );
 
-    console.log(context);
+    console.log("Context", context);
 
     const t1 = process.hrtime.bigint();
     const contextMs = Number(t1 - t0) / 1_000_000; // convert ns → ms
@@ -64,7 +67,7 @@ aiResponseQueue.process(5, async (job) => {
             `You are answering based on the following numbered context chunks:\n\n${context
               .map((c, i) => `[${i}] ${c.chunkText}`)
               .join("\n\n")}\n\n` +
-            `When you answer, include at the end of your response a JSON object indicating which chunk numbers were most influential, in the form {"used_chunks": [0, 2, 5]}.`,
+            `When you answer, include at the end of your response a JSON object indicating which chunk numbers were most influential, in the form example: <used_chunks>{"used_chunk_idx": [0, 2, 5]}</used_chunks>.`,
         },
         {
           type: "text",
@@ -113,12 +116,39 @@ aiResponseQueue.process(5, async (job) => {
       });
     }
 
-    await db.insert(messagesTable).values({
-      role: "assistant",
-      content: responseChunks.join(""),
-      conversationId,
-      createdAt: new Date().toISOString(),
-    });
+    const usedChunkIdxsMatch = responseChunks
+      .join("")
+      .match(/<used_chunks>(.*?)<\/used_chunks>/);
+
+    const [createdMessage] = await db
+      .insert(messagesTable)
+      .values({
+        role: "assistant",
+        content: responseChunks.join(""),
+        conversationId,
+        createdAt: new Date().toISOString(),
+      })
+      .returning();
+
+    if (usedChunkIdxsMatch) {
+      const usedChunkIdxs = JSON.parse(usedChunkIdxsMatch[1]) as {
+        used_chunk_idx: number[];
+      };
+      let toBeInserted: { chunkBoxPositionId: string; messageId: number }[] =
+        [];
+      for (const idx of usedChunkIdxs.used_chunk_idx) {
+        console.log(idx, context[idx]);
+        toBeInserted.push(
+          ...context[idx].boxPositions.map((boxPosition) => ({
+            chunkBoxPositionId: boxPosition.id,
+            messageId: createdMessage.id,
+          }))
+        );
+      }
+      await db
+        .insert(chunkBoxPositionToMessageMappingTable)
+        .values(toBeInserted);
+    }
 
     io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {
       jobId: job.id,

@@ -11,6 +11,7 @@ import {
   index,
   unique,
   bigserial,
+  real,
 } from "drizzle-orm/pg-core";
 
 export const providerTypeEnum = pgEnum("provider", ["google", "facebook"]);
@@ -81,9 +82,7 @@ export const documentChunksTable = pgTable(
       .notNull(),
 
     chunkText: text().notNull(),
-    chunkIndex: integer().notNull(),
-    startPage: integer().notNull(),
-    endPage: integer().notNull(),
+    pageNumber: integer().notNull(),
 
     pineconeId: varchar({ length: 255 }).notNull(),
     embeddingModel: varchar({ length: 100 }).notNull(),
@@ -97,8 +96,36 @@ export const documentChunksTable = pgTable(
       "gin",
       sql`to_tsvector('english', ${table.chunkText})`
     ),
-    unique("documentChunkUnique").on(table.documentId, table.chunkIndex),
   ]
+);
+
+export const chunkBoxPositionTable = pgTable(
+  "chunkBoxPosition",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    chunkId: uuid().references(() => documentChunksTable.id),
+    x1: real().notNull(),
+    y1: real().notNull(),
+    x2: real().notNull(),
+    y2: real().notNull(),
+    width: real().notNull(),
+    height: real().notNull(),
+    pageNo: integer(),
+  },
+  (table) => [index("chunkPositionChunkIdIndex").on(table.chunkId)]
+);
+
+export const chunkBoxPositionToMessageMappingTable = pgTable(
+  "chunkBoxPositionToMessageMapping",
+  {
+    chunkBoxPositionId: uuid()
+      .references(() => chunkBoxPositionTable.id)
+      .notNull(),
+    messageId: bigserial({ mode: "number" })
+      .references(() => messagesTable.id)
+      .notNull(),
+  },
+  (table) => [unique().on(table.chunkBoxPositionId, table.messageId)]
 );
 
 export const conversationsTable = pgTable("conversations", {

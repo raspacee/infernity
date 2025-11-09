@@ -14,16 +14,29 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ChatInput from "./chat-input";
 import { useDocumentContext } from "@/context/DocumentContext";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { NewHighlight } from "react-pdf-highlighter";
+import { ChunkBoxPosition } from "@/types/message.types";
+import { useRouter } from "next/navigation";
+
+const getNextId = () => String(Math.random()).slice(2);
 
 export default function Chat({ conversationId }: { conversationId: string }) {
+  const router = useRouter();
   const { data: user } = useGetMyInfo();
   const { data, isPending } = useGetMessages(conversationId);
   const { mutateAsync: createMessage } = useCreateMessage();
 
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
-  const { selectedImage, setSelectedImage, chatInputRef } =
-    useDocumentContext();
+  const {
+    selectedImage,
+    setSelectedImage,
+    chatInputRef,
+    setHighlights,
+    scrollViewerTo,
+  } = useDocumentContext();
 
   /* The status of AI is deliberately represented by two variables instead
    * of one union type variable to combat the glitch of message dissapearing
@@ -89,6 +102,18 @@ export default function Chat({ conversationId }: { conversationId: string }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [aiStream, data]);
 
+  const addHighlight = (highlight: NewHighlight) => {
+    console.log("Saving highlight", highlight);
+    const id = getNextId();
+    const newIHighlight = {
+      ...highlight,
+      id,
+    };
+    setHighlights([newIHighlight]);
+    router.push(`#highlight-${id}`);
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  };
+
   const handleSendMessage = async (query: string) => {
     if (query.trim() !== "") {
       createMessage({
@@ -123,6 +148,71 @@ export default function Chat({ conversationId }: { conversationId: string }) {
 
       return <li {...props}>{children}</li>;
     },
+    used_chunks: ({ ...props }) => {
+      return null;
+    },
+  };
+
+  const calculateBoundingRect = (
+    rects: {
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      width: number;
+      height: number;
+    }[],
+  ) => {
+    const x1 = Math.min(...rects.map((r) => r.x1));
+    const y1 = Math.min(...rects.map((r) => r.y1));
+    const x2 = Math.max(...rects.map((r) => r.x2));
+    const y2 = Math.max(...rects.map((r) => r.y2));
+
+    return {
+      x1,
+      y1,
+      x2,
+      y2,
+      width: x2 - x1,
+      height: y2 - y1,
+    };
+  };
+
+  const isFiniteRect = (r: ChunkBoxPosition) =>
+    [r.x1, r.y1, r.x2, r.y2, r.width, r.height].every(
+      (v) => Number.isFinite(v) && v !== 0,
+    );
+
+  const showHighlight = (boxPositions: ChunkBoxPosition[]) => {
+    const rects = boxPositions
+      .filter((b) => isFiniteRect(b))
+      .map((b) => ({
+        x1: b.x1,
+        y1: b.y1,
+        x2: b.x2,
+        y2: b.y2,
+        width: b.width,
+        height: b.height,
+      }));
+
+    const boundingRect = calculateBoundingRect(rects);
+
+    const newHighlight: NewHighlight = {
+      content: {
+        text: "",
+      },
+      comment: {
+        emoji: "",
+        text: "",
+      },
+      position: {
+        rects,
+        pageNumber: boxPositions[0].pageNo,
+        boundingRect,
+        usePdfCoordinates: true,
+      },
+    };
+    addHighlight(newHighlight);
   };
 
   return (
@@ -142,24 +232,39 @@ export default function Chat({ conversationId }: { conversationId: string }) {
                   {getNameInitials(user?.name || "")}
                 </AvatarFallback>
               </Avatar>
-              <div
-                className={cn("p-3 text-base font-normal", {
-                  "bg-elevation-level1 rounded-lg": message.role === "user",
-                  "": message.role === "assistant",
-                })}
-              >
-                {message.queryImageURL && (
-                  <img
-                    src={message.queryImageURL}
-                    className="aspect-[2/1] w-60 object-contain"
-                  />
-                )}
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={idx === 0 ? components : {}}
+              <div className="flex flex-col gap-2 p-3">
+                <div
+                  className={cn("text-base font-normal", {
+                    "bg-elevation-level1 rounded-lg": message.role === "user",
+                    "": message.role === "assistant",
+                  })}
                 >
-                  {message.content}
-                </ReactMarkdown>
+                  {message.queryImageURL && (
+                    <img
+                      src={message.queryImageURL}
+                      className="aspect-[2/1] w-60 object-contain"
+                    />
+                  )}
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={idx === 0 ? components : {}}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+                <div className="flex gap-1">
+                  {message.annotations.map((annotation) => (
+                    <Button
+                      size="28"
+                      variant="soft"
+                      color="neutral"
+                      key={annotation.chunkId}
+                      onClick={() => showHighlight(annotation.annotations)}
+                    >
+                      {annotation.chunkId.slice(0, 2)}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
           ))}

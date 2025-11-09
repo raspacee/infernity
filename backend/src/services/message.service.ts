@@ -1,6 +1,12 @@
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, getTableColumns, sql } from "drizzle-orm";
 import { db } from "../db";
-import { messagesTable, messagesRoleEnum } from "../db/schema";
+import {
+  messagesTable,
+  messagesRoleEnum,
+  chunkBoxPositionToMessageMappingTable,
+  chunkBoxPositionTable,
+  documentChunksTable,
+} from "../db/schema";
 
 export class MessageService {
   public async getMessages(
@@ -11,7 +17,38 @@ export class MessageService {
       .from(messagesTable)
       .orderBy(asc(messagesTable.id))
       .where(eq(messagesTable.conversationId, conversationId));
-    return messages;
+
+    const messagesWithAnnotations = await Promise.all(
+      messages.map(async (message) => {
+        const annotations = await db
+          .select({
+            chunkId: chunkBoxPositionTable.chunkId,
+            annotations: sql`
+      json_agg(
+        to_jsonb(${chunkBoxPositionTable})
+      ) FILTER (WHERE ${chunkBoxPositionTable.id} IS NOT NULL)
+    `,
+          })
+          .from(chunkBoxPositionToMessageMappingTable)
+          .innerJoin(
+            chunkBoxPositionTable,
+            eq(
+              chunkBoxPositionToMessageMappingTable.chunkBoxPositionId,
+              chunkBoxPositionTable.id
+            )
+          )
+          .where(
+            eq(chunkBoxPositionToMessageMappingTable.messageId, message.id)
+          )
+          .groupBy(chunkBoxPositionTable.chunkId);
+
+        return {
+          ...message,
+          annotations,
+        };
+      })
+    );
+    return messagesWithAnnotations;
   }
 
   public async createMessage(

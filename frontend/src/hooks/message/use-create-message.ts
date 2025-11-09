@@ -1,5 +1,5 @@
 import { MessageApi } from "@/api/message";
-import { Message } from "@/types/message.types";
+import { Message, MessageWithAnnotations } from "@/types/message.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export const useCreateMessage = () => {
@@ -21,7 +21,9 @@ export const useCreateMessage = () => {
       // Optimistically update the cache
       queryClient.setQueryData(
         ["conversations", variables.conversationId, "messages"],
-        (old: { messages: Message[] }): { messages: Message[] } => {
+        (old: {
+          messages: MessageWithAnnotations[];
+        }): { messages: MessageWithAnnotations[] } => {
           return {
             messages: [
               ...old.messages,
@@ -33,6 +35,7 @@ export const useCreateMessage = () => {
                 queryImageURL: null,
                 model: "openai",
                 role: "user",
+                annotations: [],
               },
             ],
           };

@@ -1,12 +1,16 @@
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { v4 as uuid } from "uuid";
 import { db } from "../db";
-import { documentChunksTable, documentsTable } from "../db/schema";
+import {
+  chunkBoxPositionTable,
+  documentChunksTable,
+  documentsTable,
+} from "../db/schema";
 import { ParsedPdf, parsePdf } from "../utils/pdf";
-import { Chunk, createChunksWithPageMerging } from "../utils/chunks";
+// import { Chunk, createChunksWithPageMerging } from "../utils/chunks";
 import {
   createEmbeddings,
-  EmbeddingWithText,
+  EmbeddingWithChunk,
   openaiembeddings,
 } from "../utils/embeddings";
 import {
@@ -17,6 +21,12 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { storeFileInS3 } from "../clients/s3-client";
+import {
+  Chunk,
+  extractTextWithPositions,
+  ParsedPDF,
+} from "../utils/pdf-parser";
+import { createOverlappingChunks } from "../utils/chunker";
 
 interface UploadDocumentParams {
   file: Express.Multer.File;
@@ -26,7 +36,7 @@ interface UploadDocumentParams {
 
 interface DocumentProcessingResult {
   documentId: string;
-  parsedPdf: ParsedPdf;
+  parsedPdf: ParsedPDF;
 }
 
 export class DocumentService {
@@ -51,8 +61,11 @@ export class DocumentService {
         userId,
         conversationId,
       }),
-      parsePdf(file.buffer),
+      // parsePdf(file.buffer),
+      extractTextWithPositions(file.buffer),
     ]);
+
+    if (!parsedPdf) throw new Error("Error while parsing pdf.");
 
     const s3Key = `pdf/${documentId}`;
 
@@ -67,15 +80,16 @@ export class DocumentService {
       bucketName: process.env.MINIO_BUCKET_NAME!,
       s3Key,
       s3Url: s3Key,
-      textContent: parsedPdf.fullText,
-      pageCount: parsedPdf.totalPages,
+      textContent: parsedPdf.fullContent,
+      pageCount: parsedPdf.totalPages!,
       uploadedAt: new Date().toISOString(),
       processingStatus: "processing",
     });
 
-    const chunks = createChunksWithPageMerging(
-      parsedPdf.pages.map((page) => page.text)
-    );
+    // const chunks = createChunksWithPageMerging(
+    //   parsedPdf.pages.map((page) => page.text)
+    // );
+    const chunks = createOverlappingChunks(parsedPdf.pages);
 
     await this.storeEmbeddingsAndChunks(
       documentId,
@@ -124,61 +138,73 @@ export class DocumentService {
   ) {
     const embeddings = await createEmbeddings(chunks);
 
-    const pineconeEmbeddings = await this.storePineconeEmbeddings(
+    const pineconeRecords = await this.storePineconeEmbeddings(
       embeddings,
       conversationId,
       userId
     );
 
-    await this.createDocumentChunks(
+    await this.storeDocumentChunks(
       embeddings,
-      pineconeEmbeddings,
+      pineconeRecords,
       documentId,
       userId
     );
   }
 
   private async storePineconeEmbeddings(
-    embeddings: EmbeddingWithText[],
+    embeddings: EmbeddingWithChunk[],
     conversationId: string,
     userId: string
   ) {
-    const pineconeEmbeddings: PineconeRecord[] = embeddings.map(
-      (embedding) => ({
-        id: uuid(),
-        values: embedding.values,
-        metadata: {
-          userId,
-          conversationId,
-        },
-      })
-    );
+    const pineconeRecords: PineconeRecord[] = embeddings.map((embedding) => ({
+      id: uuid(),
+      values: embedding.values,
+      metadata: {
+        userId,
+        conversationId,
+      },
+    }));
 
-    await this.documentsIndex.namespace(userId).upsert(pineconeEmbeddings);
-    return pineconeEmbeddings;
+    await this.documentsIndex.namespace(userId).upsert(pineconeRecords);
+    return pineconeRecords;
   }
 
-  private async createDocumentChunks(
-    embeddings: EmbeddingWithText[],
-    pineconeEmbeddings: PineconeRecord[],
+  private async storeDocumentChunks(
+    embeddings: EmbeddingWithChunk[],
+    pineconeRecords: PineconeRecord[],
     documentId: string,
     userId: string
   ) {
-    const documentChunksToBeInserted: (typeof documentChunksTable.$inferInsert)[] =
-      pineconeEmbeddings.map((embedding, index) => ({
-        id: uuid(),
-        userId,
-        documentId,
-        pineconeId: embedding.id,
-        chunkIndex: embeddings[index].chunk.chunkIndex,
-        chunkText: embeddings[index].chunk.text,
-        embeddingModel: "text-embedding-3-small",
-        startPage: embeddings[index].chunk.startPage!,
-        endPage: embeddings[index].chunk.endPage!,
-        createdAt: new Date().toISOString(),
-      }));
+    const boxesToBeInserted: (typeof chunkBoxPositionTable.$inferInsert)[] = [];
 
-    await db.insert(documentChunksTable).values(documentChunksToBeInserted);
+    const documentChunksToBeInserted: (typeof documentChunksTable.$inferInsert)[] =
+      pineconeRecords.map((embedding, index) => {
+        const chunkId = uuid();
+
+        for (const box of embeddings[index].chunk.boxes) {
+          boxesToBeInserted.push({
+            chunkId,
+            ...box,
+          });
+        }
+
+        return {
+          id: chunkId,
+          userId,
+          documentId,
+          pineconeId: embedding.id,
+          chunkText: embeddings[index].chunk.text,
+          embeddingModel: "text-embedding-3-small",
+          createdAt: new Date().toISOString(),
+          pageNumber: embeddings[index].chunk.pageNumber,
+        };
+      });
+
+    await Promise.all([
+      await db.insert(documentChunksTable).values(documentChunksToBeInserted),
+      await db.insert(chunkBoxPositionTable).values(boxesToBeInserted),
+    ]);
   }
 
   public getDocumentById = async (
@@ -222,7 +248,7 @@ export class DocumentService {
     conversationId: string,
     userId: string,
     query: string
-  ): Promise<(typeof documentChunksTable.$inferSelect)[]> {
+  ) {
     const vector = await openaiembeddings.embedQuery(query);
 
     const response = await this.documentsIndex.namespace(userId).searchRecords({
@@ -239,11 +265,23 @@ export class DocumentService {
 
     const pineconesIds = response.result.hits.map((hit) => hit._id);
 
-    const chunks = await db
+    const chunksWithBox = await db
       .select()
       .from(documentChunksTable)
+      .leftJoin(
+        chunkBoxPositionTable,
+        eq(chunkBoxPositionTable.chunkId, documentChunksTable.id)
+      )
       .where(inArray(documentChunksTable.pineconeId, pineconesIds));
 
-    return chunks;
+    const grouped = Object.values(
+      chunksWithBox.reduce((acc, { documentChunks, chunkBoxPosition }) => {
+        acc[documentChunks.id] ??= { ...documentChunks, boxPositions: [] };
+        if (chunkBoxPosition)
+          acc[documentChunks.id].boxPositions.push(chunkBoxPosition);
+        return acc;
+      }, {} as Record<string, typeof documentChunksTable.$inferSelect & { boxPositions: (typeof chunkBoxPositionTable.$inferSelect)[] }>)
+    );
+    return grouped;
   }
 }

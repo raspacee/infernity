@@ -1,9 +1,9 @@
-import { Message } from "@/types/message.types";
+import { Message, MessageWithAnnotations } from "@/types/message.types";
 import { BASE_API_URL } from ".";
 
 const getMessages = async (
   conversationId: string,
-): Promise<{ messages: Message[] }> => {
+): Promise<{ messages: MessageWithAnnotations[] }> => {
   const res = await fetch(
     new URL(`/api/conversations/${conversationId}/messages`, BASE_API_URL),
     {

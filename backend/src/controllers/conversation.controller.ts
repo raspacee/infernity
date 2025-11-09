@@ -46,14 +46,14 @@ export class ConversationController {
       let textForSummary = "";
       // If document is less than 15 pages, feed whole document for summary
       if (pdf.totalPages <= 15) {
-        pdf.pages.map((page) => (textForSummary += page.text));
+        textForSummary = pdf.fullContent;
       } else {
         // Else, Feed first 10 and last 5 pages for summary
         for (let i = 0; i < 10; i++) {
-          textForSummary += pdf.pages[i].text;
+          textForSummary += pdf.pages[i].pageContent;
         }
         for (let i = pdf.totalPages - 5; i < pdf.totalPages; i++) {
-          textForSummary += pdf.pages[i].text;
+          textForSummary += pdf.pages[i].pageContent;
         }
       }
 
