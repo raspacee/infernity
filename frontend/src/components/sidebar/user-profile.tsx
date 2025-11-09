@@ -78,7 +78,6 @@ export default function UserProfile() {
                   color="neutral"
                   onClick={() => logout()}
                   disabled={isPending}
-                  loading={isPending}
                 >
                   Log Out
                 </Button>

@@ -36,6 +36,7 @@ export default function Chat({ conversationId }: { conversationId: string }) {
     chatInputRef,
     setHighlights,
     scrollViewerTo,
+    setCurrentPage,
   } = useDocumentContext();
 
   /* The status of AI is deliberately represented by two variables instead
@@ -111,7 +112,10 @@ export default function Chat({ conversationId }: { conversationId: string }) {
     };
     setHighlights([newIHighlight]);
     router.push(`#highlight-${id}`);
-    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    setTimeout(() => {
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    }, 1000);
+    setCurrentPage(String(newIHighlight.position.pageNumber));
   };
 
   const handleSendMessage = async (query: string) => {

@@ -9,7 +9,7 @@ export default function GoogleSignIn() {
     <Button
       variant="outline"
       color="neutral"
-      className="w-full text-text-secondary"
+      className="text-fg-secondary w-full"
       asChild
     >
       <Link href={new URL("api/auth/google", process.env.NEXT_PUBLIC_API_URL!)}>

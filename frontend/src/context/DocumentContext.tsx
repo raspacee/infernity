@@ -8,6 +8,8 @@ interface DocumentContextType {
   highlights: Array<IHighlight>;
   setHighlights: React.Dispatch<React.SetStateAction<IHighlight[]>>;
   scrollViewerTo: React.RefObject<(highlight: IHighlight) => void>;
+  currentPage: string;
+  setCurrentPage: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const DocumentContext = React.createContext<DocumentContextType | null>(null);
@@ -20,6 +22,7 @@ export const DocumentContextProvider = ({
   const [selectedImage, setSelectedImage] = useState<Blob | null>(null);
   const [highlights, setHighlights] = useState<Array<IHighlight>>([]);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const [currentPage, setCurrentPage] = useState("1");
 
   const scrollViewerTo = useRef((highlight: IHighlight) => {});
 
@@ -32,6 +35,8 @@ export const DocumentContextProvider = ({
         highlights,
         setHighlights,
         scrollViewerTo,
+        currentPage,
+        setCurrentPage,
       }}
     >
       {children}

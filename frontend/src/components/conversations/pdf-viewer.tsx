@@ -48,20 +48,19 @@ export default function PdfViewer({
   presignedUrl: string;
 }) {
   const [scale, setScale] = useState(1);
-  const [currentPage, setCurrentPage] = useState("1");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const { highlights, setHighlights } = useDocumentContext();
+  const { highlights, setHighlights, currentPage, setCurrentPage } =
+    useDocumentContext();
 
-  const scrollViewerTo = useRef((highlight: IHighlight) => {});
+  const scrollViewerTo = useRef<(highlight: IHighlight) => void | null>(null);
 
   const scrollToHighlightFromHash = useCallback(() => {
-    const highlight = getHighlightById(parseIdFromHash());
-    console.log("h", highlight);
-    if (highlight) {
-      scrollViewerTo.current(highlight);
+    if (highlights && scrollViewerTo.current) {
+      const highlight = getHighlightById(parseIdFromHash());
+      if (highlight) scrollViewerTo.current(highlight);
     }
-  }, []);
+  }, [highlights, scrollViewerTo.current]);
 
   useEffect(() => {
     window.addEventListener("hashchange", scrollToHighlightFromHash, false);
@@ -173,6 +172,7 @@ export default function PdfViewer({
               enableAreaSelection={(event) => event.altKey}
               onScrollChange={resetHash}
               scrollRef={(scrollTo) => {
+                console.log("scrollRef assigned");
                 scrollViewerTo.current = scrollTo;
                 scrollToHighlightFromHash();
               }}
