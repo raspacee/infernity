@@ -284,4 +284,20 @@ export class DocumentService {
     );
     return grouped;
   }
+
+  public async getDocumentByConversationId(
+    conversationId: string
+  ): Promise<typeof documentsTable.$inferSelect | null> {
+    if (!conversationId) return null;
+
+    const [document] = await db
+      .select()
+      .from(documentsTable)
+      .where(eq(documentsTable.conversationId, conversationId))
+      .limit(1);
+
+    if (!document) return null;
+
+    return document;
+  }
 }

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import UserProfileSkeleton from "./user-profile-skeleton";
 import dynamic from "next/dynamic";
 import { useSidebarContext } from "@/context/SidebarContext";
+import Link from "next/link";
 
 const UserProfile = dynamic(() => import("./user-profile"), {
   ssr: false,
@@ -28,18 +29,18 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex flex-col gap-4 h-full w-80 border-r border-r-border p-3 bg-fill-level1 transition-all",
-        { "w-0 overflow-hidden px-0": !open }
+        "border-r-border bg-fill-level1 flex h-full w-80 flex-col gap-4 border-r p-3 transition-all",
+        { "w-0 overflow-hidden px-0": !open },
       )}
     >
       {/* For logo and header */}
-      <header className="flex gap-2 px-3 py-2">
-        <Image src="/logo.svg" height={36} width={48} alt="Logo" />
+      <Link href="/" className="flex w-fit cursor-pointer gap-2 px-3 py-2">
+        <Image src="/logo.svg" height={36} width={48} alt="Infernity Logo" />
         <LogoName className="text-3xl" />
-      </header>
+      </Link>
 
       {/* For body and footer */}
-      <div className="flex flex-col justify-between h-full">
+      <div className="flex h-full flex-col justify-between">
         <nav className="flex flex-col gap-1">
           {sidebarItems.map((item) => (
             <SidebarItem item={item} key={item.name} />

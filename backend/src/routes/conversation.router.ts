@@ -5,6 +5,7 @@ import { ConversationController } from "../controllers/conversation.controller";
 import { DocumentService } from "../services/document.service";
 import { s3Client } from "../clients/s3-client";
 import { documentsIndex } from "../clients/pinecone-client";
+import { FlashCardController } from "../controllers/flashcard.controller";
 
 const router = Router();
 
@@ -52,6 +53,20 @@ router.post(
   AuthMiddleware.verifyConversationOwnership,
   upload.single("image"),
   conversationController.handleCreateMessage
+);
+
+router.post(
+  "/:conversationId/flashcards",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  FlashCardController.handleCreateFlashCards
+);
+
+router.get(
+  "/:conversationId/flashcards",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  FlashCardController.handleGetFlashCards
 );
 
 export default router;

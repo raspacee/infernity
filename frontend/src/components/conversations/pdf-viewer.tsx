@@ -3,7 +3,6 @@ import {
   PdfHighlighter,
   PdfLoader,
   IHighlight,
-  NewHighlight,
   AreaHighlight,
   ScaledPosition,
   Content,
@@ -21,6 +20,7 @@ import { useCallback } from "react";
 import "react-pdf-highlighter/dist/style.css";
 import PdfActionButtons from "./pdf-action-buttons";
 import { useDocumentContext } from "@/context/DocumentContext";
+import PdfFeaturesButtons from "./pdf-features-buttons";
 
 const parseIdFromHash = () =>
   document.location.hash.slice("#highlight-".length);
@@ -161,6 +161,7 @@ export default function PdfViewer({
             <ZoomIn size={20} />
           </IconButton>
         </div>
+        <PdfFeaturesButtons />
       </div>
       <div ref={scrollContainerRef} className="relative flex-1 overflow-auto">
         <PdfLoader url={presignedUrl} beforeLoad={<Spinner />}>

@@ -33,7 +33,7 @@ export type AiResponseQueueType = {
   messagesHistory: (typeof messagesTable.$inferSelect)[];
 };
 
-aiResponseQueue.process(5, async (job) => {
+aiResponseQueue.process(2, async (job) => {
   const { userId, conversationId, query, queryImageKey, messagesHistory } =
     job.data as AiResponseQueueType;
 

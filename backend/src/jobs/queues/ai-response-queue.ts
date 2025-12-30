@@ -14,14 +14,14 @@ aiResponseQueue.client.on("error", (err) => {
 });
 
 aiResponseQueue.client.on("ready", () => {
-  console.log("✅ Redis client is ready — AI Response queue can process jobs");
+  console.log("Redis client is ready — AI Response queue can process jobs");
 });
 
 aiResponseQueue.client
   .ping()
-  .then(() => console.log("✅ Redis is connected"))
+  .then(() => console.log("Redis is connected"))
   .catch((err) => {
-    console.error("❌ Cannot connect to Redis:", err);
+    console.error("Cannot connect to Redis:", err);
     process.exit(1); // stop the app
   });
 

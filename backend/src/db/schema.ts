@@ -160,3 +160,28 @@ export const messagesTable = pgTable(
     index("conversationIdOrderIndex").on(table.conversationId, table.id),
   ]
 );
+
+export const flashCardsTable = pgTable("flashcards", {
+  id: bigserial({ mode: "number" }).primaryKey(),
+
+  groupingId: uuid()
+    .references(() => flashCardsGroupTable.id, {
+      onDelete: "cascade",
+    })
+    .notNull(),
+
+  frontContent: text(),
+  backContent: text(),
+});
+
+export const flashCardsGroupTable = pgTable("flashcards_group", {
+  id: uuid().primaryKey(),
+
+  title: varchar({ length: 512 }).notNull(),
+
+  conversationId: uuid().references(() => conversationsTable.id, {
+    onDelete: "cascade",
+  }),
+
+  createdAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+});
