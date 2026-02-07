@@ -21,6 +21,9 @@ import { ChunkBoxPosition } from "@/types/message.types";
 import { useRouter } from "next/navigation";
 
 const getNextId = () => String(Math.random()).slice(2);
+const stripUsedChunks = (text: string) => {
+  return text.replace(/<used_chunks>[\s\S]*?(?:<\/used_chunks>|$)/g, "");
+};
 
 export default function Chat({ conversationId }: { conversationId: string }) {
   const router = useRouter();
@@ -224,7 +227,7 @@ export default function Chat({ conversationId }: { conversationId: string }) {
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {data &&
           data.messages.length > 0 &&
-          data.messages.map((message, idx) => (
+          data.messages.map((message) => (
             <div key={message.id} className="flex gap-3">
               <Avatar className="mt-3">
                 <AvatarImage
@@ -251,9 +254,9 @@ export default function Chat({ conversationId }: { conversationId: string }) {
                   )}
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
-                    components={idx === 0 ? components : {}}
+                    components={message.role === "assistant" ? components : {}}
                   >
-                    {message.content}
+                    {stripUsedChunks(message.content)}
                   </ReactMarkdown>
                 </div>
                 <div className="flex gap-1">
@@ -287,8 +290,11 @@ export default function Chat({ conversationId }: { conversationId: string }) {
               <AvatarFallback>AI</AvatarFallback>
             </Avatar>
             <div className="bg-bg-level0 rounded-lg p-3 text-base font-normal">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {aiStream}
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={components}
+              >
+                {stripUsedChunks(aiStream)}
               </ReactMarkdown>
             </div>
           </div>
