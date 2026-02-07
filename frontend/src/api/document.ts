@@ -16,15 +16,40 @@ const uploadPdf = async (file: File) => {
   return res.json();
 };
 
+const addDocument = async ({
+  file,
+  conversationId,
+}: {
+  file: File;
+  conversationId: string;
+}) => {
+  const formData = new FormData();
+
+  formData.append("document", file);
+
+  const res = await fetch(
+    new URL(`/api/conversations/${conversationId}/add-document`, BASE_API_URL),
+    {
+      method: "post",
+      body: formData,
+      credentials: "include",
+    },
+  );
+
+  if (!res.ok) throw new Error("Failed to add document");
+
+  return res.json();
+};
+
 const getPresignedUrl = async (
-  conversationId: string
+  conversationId: string,
 ): Promise<{ presignedUrl: string }> => {
   const res = await fetch(
     new URL(`/api/documents/presigned-url/${conversationId}`, BASE_API_URL),
     {
       method: "get",
       credentials: "include",
-    }
+    },
   );
 
   if (!res.ok) {
@@ -35,4 +60,4 @@ const getPresignedUrl = async (
   return res.json();
 };
 
-export const DocumentApi = { uploadPdf, getPresignedUrl };
+export const DocumentApi = { uploadPdf, getPresignedUrl, addDocument };

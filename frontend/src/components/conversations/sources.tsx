@@ -11,12 +11,25 @@ import { Divider } from "../ui/divider";
 import { useGetConversationSources } from "@/hooks/conversation/use-get-conversation-sources";
 import { useParams } from "next/navigation";
 import SourceItem from "../source/source-item";
+import { Label } from "../ui/label";
+import { useAddDocument } from "@/hooks/document/use-add-document";
 
 export default function Sources() {
   const { conversationId } = useParams<{ conversationId: string }>();
+  const { mutateAsync: addDocument, isPending: isAddingDocument } =
+    useAddDocument();
 
   const { data: sources, isPending } =
     useGetConversationSources(conversationId);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === "application/pdf") {
+      addDocument({ file, conversationId });
+    } else {
+      alert("Only PDF is supported");
+    }
+  };
 
   console.log(sources);
 
@@ -35,15 +48,29 @@ export default function Sources() {
       <DrawerContent className="w-100">
         <DrawerTitle className="heading-4!">Sources</DrawerTitle>
         <Divider />
-        <Button className="w-full" variant="glossy">
-          <Plus />
-          Add Source
+        <Button
+          asChild
+          className="w-full"
+          variant="glossy"
+          disabled={isAddingDocument}
+        >
+          <Label htmlFor="document">
+            <Plus />
+            {isAddingDocument ? "Adding Source..." : "Add Source"}
+          </Label>
         </Button>
+        <input
+          type="file"
+          className="hidden"
+          id="document"
+          accept=".pdf"
+          onChange={handleFileChange}
+        />
         <div className="mt-4">
           <p className="text-fg-secondary text-base font-semibold">
             Select sources
           </p>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-col gap-3">
             {sources &&
               sources.map((source) => (
                 <SourceItem key={source.id} source={source} />

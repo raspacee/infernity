@@ -18,34 +18,42 @@ router.post(
   "/",
   AuthMiddleware.validateAccessToken,
   upload.single("document"),
-  conversationController.handleCreateConversation
+  conversationController.handleCreateConversation,
+);
+
+router.post(
+  "/:conversationId/add-document",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  upload.single("document"),
+  conversationController.handleAddDocument,
 );
 
 router.get(
   "/",
   AuthMiddleware.validateAccessToken,
-  conversationController.handleGetUserConversations
+  conversationController.handleGetUserConversations,
 );
 
 router.get(
   "/:conversationId",
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
-  conversationController.handleGetConversation
+  conversationController.handleGetConversation,
 );
 
 router.patch(
   "/:conversationId",
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
-  conversationController.handleUpdateConversation
+  conversationController.handleUpdateConversation,
 );
 
 router.get(
   "/:conversationId/messages",
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
-  conversationController.handleGetMessages
+  conversationController.handleGetMessages,
 );
 
 router.post(
@@ -53,42 +61,42 @@ router.post(
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
   upload.single("image"),
-  conversationController.handleCreateMessage
+  conversationController.handleCreateMessage,
 );
 
 router.post(
   "/:conversationId/flashcards",
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
-  FlashCardController.handleCreateFlashCards
+  FlashCardController.handleCreateFlashCards,
 );
 
 router.get(
   "/:conversationId/flashcards",
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
-  FlashCardController.handleGetFlashCards
+  FlashCardController.handleGetFlashCards,
 );
 
 router.post(
   "/:conversationId/mindmap",
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
-  MindMapController.handleCreateMindMap
+  MindMapController.handleCreateMindMap,
 );
 
 router.get(
   "/:conversationId/mindmap",
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
-  MindMapController.handleGetMindMap
+  MindMapController.handleGetMindMap,
 );
 
 router.get(
   "/:conversationId/sources",
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
-  conversationController.handleGetSources
+  conversationController.handleGetSources,
 );
 
 export default router;

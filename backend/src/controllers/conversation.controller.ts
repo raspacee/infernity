@@ -78,7 +78,7 @@ export class ConversationController {
         await messageService.createMessage({
           content: (summary.content as string).replace(
             /<title>(.*?)<\/title>/i,
-            ""
+            "",
           ),
           conversationId: conversation.id,
           createdAt: new Date().toISOString(),
@@ -89,7 +89,7 @@ export class ConversationController {
         tasks.push(
           await conversationService.updateConversation(conversation.id, {
             title: title[1],
-          })
+          }),
         );
       }
 
@@ -106,10 +106,38 @@ export class ConversationController {
     }
   };
 
+  public handleAddDocument = async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "No file uploaded" });
+        return;
+      }
+
+      const { conversationId } = req.params;
+
+      await this.documentService.uploadDocument({
+        file: req.file,
+        conversationId: conversationId,
+        userId: req.user!.id,
+      });
+
+      return res.status(201).json({ message: "Document added successfully" });
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return res.status(404).json({ error: "Conversation Id not found" });
+      }
+
+      console.error(err);
+      res.status(500).json({
+        error: "Failed to add document to conversation",
+      });
+    }
+  };
+
   public handleGetUserConversations = async (req: Request, res: Response) => {
     try {
       const conversations = await conversationService.getUserConversations(
-        req.user!.id
+        req.user!.id,
       );
       res.json({ conversations });
     } catch (err) {
@@ -124,9 +152,8 @@ export class ConversationController {
     try {
       const { conversationId } = req.params;
 
-      const result = await conversationService.getConversationWithDocument(
-        conversationId
-      );
+      const result =
+        await conversationService.getConversationWithDocument(conversationId);
 
       res.status(200).json({
         conversation: result?.conversations,
@@ -166,13 +193,13 @@ export class ConversationController {
             } catch (err) {
               console.error(
                 `Failed to generate signed URL for key ${msg.queryImageKey}`,
-                err
+                err,
               );
               return { ...msg, imageUrl: null };
             }
           }
           return msg;
-        })
+        }),
       );
 
       res.status(200).json({ messages: messagesWithURLs });
@@ -216,7 +243,7 @@ export class ConversationController {
         const title = await namingLlm.invoke([
           new SystemMessage(NAMING_LLM_SYSTEM_PROMPT),
           new HumanMessage(
-            "You are a model used to exclusively give title to a conversation session. You will be a user query based on that give the title."
+            "You are a model used to exclusively give title to a conversation session. You will be a user query based on that give the title.",
           ),
         ]);
         conversationService
@@ -224,7 +251,7 @@ export class ConversationController {
             title: title.content as string,
           })
           .catch((err) =>
-            console.error("Failed to update conversation title: ", err)
+            console.error("Failed to update conversation title: ", err),
           );
       }
 
@@ -241,7 +268,7 @@ export class ConversationController {
           attempts: 3,
           backoff: { type: "exponential" },
           delay: 1000,
-        }
+        },
       );
 
       res.status(201).json({ message, jobId: job.id });
@@ -269,7 +296,7 @@ export class ConversationController {
 
       const conversation = await conversationService.updateConversation(
         conversationId,
-        updates
+        updates,
       );
       res.status(200).json(conversation);
     } catch (err) {
@@ -284,9 +311,8 @@ export class ConversationController {
     try {
       const { conversationId } = req.params;
 
-      const sources = await conversationService.getConversationSources(
-        conversationId
-      );
+      const sources =
+        await conversationService.getConversationSources(conversationId);
 
       res.status(200).json({ data: sources });
     } catch (err) {
