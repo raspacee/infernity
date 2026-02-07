@@ -66,6 +66,7 @@ export const documentsTable = pgTable(
       .notNull(),
     textContent: text().notNull(),
     processingStatus: processingStatusEnum().default("pending").notNull(),
+    isQueryable: boolean().default(true).notNull(),
 
     /* Metadata */
     filename: varchar({ length: 255 }).notNull(),
@@ -83,7 +84,7 @@ export const documentsTable = pgTable(
 
     uploadedAt: timestamp({ withTimezone: true, mode: "string" }),
   },
-  (table) => [index("userIdIndex").on(table.userId)]
+  (table) => [index("userIdIndex").on(table.userId)],
 );
 
 export const documentChunksTable = pgTable(
@@ -110,9 +111,9 @@ export const documentChunksTable = pgTable(
     index("chunkPineconeIdIndex").on(table.pineconeId),
     index("chunkTextSearchIndex").using(
       "gin",
-      sql`to_tsvector('english', ${table.chunkText})`
+      sql`to_tsvector('english', ${table.chunkText})`,
     ),
-  ]
+  ],
 );
 
 export const chunkBoxPositionTable = pgTable(
@@ -128,7 +129,7 @@ export const chunkBoxPositionTable = pgTable(
     height: real().notNull(),
     pageNo: integer(),
   },
-  (table) => [index("chunkPositionChunkIdIndex").on(table.chunkId)]
+  (table) => [index("chunkPositionChunkIdIndex").on(table.chunkId)],
 );
 
 export const chunkBoxPositionToMessageMappingTable = pgTable(
@@ -141,7 +142,7 @@ export const chunkBoxPositionToMessageMappingTable = pgTable(
       .references(() => messagesTable.id)
       .notNull(),
   },
-  (table) => [unique().on(table.chunkBoxPositionId, table.messageId)]
+  (table) => [unique().on(table.chunkBoxPositionId, table.messageId)],
 );
 
 export const conversationsTable = pgTable("conversations", {
@@ -174,7 +175,7 @@ export const messagesTable = pgTable(
   (table) => [
     index("conversationIdIndex").on(table.conversationId),
     index("conversationIdOrderIndex").on(table.conversationId, table.id),
-  ]
+  ],
 );
 
 export const flashCardsTable = pgTable("flashcards", {

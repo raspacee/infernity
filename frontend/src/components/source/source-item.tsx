@@ -10,7 +10,18 @@ import { Checkbox } from "../ui/checkbox";
 import { type SourceItem } from "@/types/document.types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
-export default function SourceItem({ source }: { source: SourceItem }) {
+export default function SourceItem({
+  source,
+  toggleDocumentQueryable,
+  conversationId,
+}: {
+  source: SourceItem;
+  toggleDocumentQueryable: (variables: {
+    conversationId: string;
+    documentId: string;
+  }) => void;
+  conversationId: string;
+}) {
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-1">
@@ -31,7 +42,12 @@ export default function SourceItem({ source }: { source: SourceItem }) {
           <TooltipContent>{source.originalFileName}</TooltipContent>
         </Tooltip>
       </div>
-      <Checkbox />
+      <Checkbox
+        checked={source.isQueryable}
+        onCheckedChange={() =>
+          toggleDocumentQueryable({ conversationId, documentId: source.id })
+        }
+      />
     </div>
   );
 }

@@ -6,8 +6,6 @@ import {
   documentChunksTable,
   documentsTable,
 } from "../db/schema";
-import { ParsedPdf, parsePdf } from "../utils/pdf";
-// import { Chunk, createChunksWithPageMerging } from "../utils/chunks";
 import {
   createEmbeddings,
   EmbeddingWithChunk,
@@ -18,7 +16,7 @@ import {
   RecordMetadata,
   type PineconeRecord,
 } from "@pinecone-database/pinecone";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql, and } from "drizzle-orm";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { storeFileInS3 } from "../clients/s3-client";
 import {
@@ -89,7 +87,6 @@ export class DocumentService {
     // const chunks = createChunksWithPageMerging(
     //   parsedPdf.pages.map((page) => page.text)
     // );
-    console.log(parsedPdf.pages);
     const chunks = createOverlappingChunks(parsedPdf.pages);
 
     await this.storeEmbeddingsAndChunks(
@@ -138,12 +135,12 @@ export class DocumentService {
     conversationId: string,
   ) {
     const embeddings = await createEmbeddings(chunks);
-    console.log(embeddings);
 
     const pineconeRecords = await this.storePineconeEmbeddings(
       embeddings,
       conversationId,
       userId,
+      documentId,
     );
 
     await this.storeDocumentChunks(
@@ -158,6 +155,7 @@ export class DocumentService {
     embeddings: EmbeddingWithChunk[],
     conversationId: string,
     userId: string,
+    documentId: string,
   ) {
     const pineconeRecords: PineconeRecord[] = embeddings.map((embedding) => ({
       id: uuid(),
@@ -165,6 +163,7 @@ export class DocumentService {
       metadata: {
         userId,
         conversationId,
+        documentId,
       },
     }));
 
@@ -255,6 +254,7 @@ export class DocumentService {
     conversationId: string,
     userId: string,
     query: string,
+    documentIds: string[],
   ) {
     const vector = await openaiembeddings.embedQuery(query);
 
@@ -265,7 +265,9 @@ export class DocumentService {
           values: vector,
         },
         filter: {
-          conversationId,
+          documentId: {
+            $in: documentIds,
+          },
         },
       },
     });
@@ -316,5 +318,26 @@ export class DocumentService {
     if (!document) return null;
 
     return document;
+  }
+
+  public async toggleDocumentQueryable(documentId: string) {
+    await db
+      .update(documentsTable)
+      .set({ isQueryable: sql`NOT ${documentsTable.isQueryable}` })
+      .where(eq(documentsTable.id, documentId));
+  }
+
+  public async getQueryableDocuments(conversationId: string) {
+    const documents = await db
+      .select()
+      .from(documentsTable)
+      .where(
+        and(
+          eq(documentsTable.conversationId, conversationId),
+          eq(documentsTable.isQueryable, true),
+        ),
+      );
+
+    return documents;
   }
 }

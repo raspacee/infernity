@@ -5,7 +5,7 @@ import { ConversationService } from "../services/conversation.service";
 export class DocumentController {
   constructor(
     private documentService: DocumentService,
-    private conversationService: ConversationService
+    private conversationService: ConversationService,
   ) {
     this.documentService = documentService;
     this.conversationService = conversationService;
@@ -21,7 +21,7 @@ export class DocumentController {
 
       const conversation =
         await this.conversationService.getConversationWithDocument(
-          conversationId
+          conversationId,
         );
       if (!conversation) {
         res
@@ -41,7 +41,7 @@ export class DocumentController {
 
       const presignedUrl = await this.documentService.getPresignedUrl(
         document.s3Key,
-        document.bucketName
+        document.bucketName,
       );
 
       res.status(200).json({
@@ -53,24 +53,50 @@ export class DocumentController {
     }
   };
 
-  handleUploadDocument = async (req: Request, res: Response) => {
+  public handleToggleDocumentQueryable = async (
+    req: Request,
+    res: Response,
+  ) => {
     try {
-      if (!req.file) {
-        res.status(400).json({ error: "No file uploaded" });
+      const conversationId = req.params.conversationId;
+      const documentId = req.params.documentId;
+
+      if (!conversationId || !documentId) {
+        res
+          .status(400)
+          .json({ error: "Conversation id or document id is missing" });
         return;
       }
 
-      const result = await this.documentService.uploadDocument({
-        file: req.file,
-        userId: req.user!.id,
-      });
+      await this.documentService.toggleDocumentQueryable(documentId);
 
-      res.status(201).json({
-        documentId: result.documentId,
+      res.status(200).json({
+        message: "Document queryable toggled successfully",
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Failed to upload document" });
+      res.status(500).json({ error: "Failed to toggle document queryable" });
     }
   };
+
+  // handleUploadDocument = async (req: Request, res: Response) => {
+  //   try {
+  //     if (!req.file) {
+  //       res.status(400).json({ error: "No file uploaded" });
+  //       return;
+  //     }
+
+  //     const result = await this.documentService.uploadDocument({
+  //       file: req.file,
+  //       userId: req.user!.id,
+  //     });
+
+  //     res.status(201).json({
+  //       documentId: result.documentId,
+  //     });
+  //   } catch (err) {
+  //     console.error(err);
+  //     res.status(500).json({ error: "Failed to upload document" });
+  //   }
+  // };
 }

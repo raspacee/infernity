@@ -1,0 +1,1 @@
+ALTER TABLE "documents" ADD COLUMN "isQueryable" boolean DEFAULT true NOT NULL;

@@ -13,11 +13,13 @@ import { useParams } from "next/navigation";
 import SourceItem from "../source/source-item";
 import { Label } from "../ui/label";
 import { useAddDocument } from "@/hooks/document/use-add-document";
+import { useToggleDocumentQueryable } from "@/hooks/document/use-toggle-document-queryable";
 
 export default function Sources() {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { mutateAsync: addDocument, isPending: isAddingDocument } =
     useAddDocument();
+  const { mutateAsync: toggleDocumentQueryable } = useToggleDocumentQueryable();
 
   const { data: sources, isPending } =
     useGetConversationSources(conversationId);
@@ -73,7 +75,12 @@ export default function Sources() {
           <div className="mt-2 flex flex-col gap-3">
             {sources &&
               sources.map((source) => (
-                <SourceItem key={source.id} source={source} />
+                <SourceItem
+                  key={source.id}
+                  source={source}
+                  conversationId={conversationId}
+                  toggleDocumentQueryable={toggleDocumentQueryable}
+                />
               ))}
           </div>
         </div>

@@ -13,13 +13,20 @@ const conversationService = new ConversationService();
 
 const documentController = new DocumentController(
   documentService,
-  conversationService
+  conversationService,
 );
 
 router.get(
   "/presigned-url/:conversationId",
   AuthMiddleware.validateAccessToken,
-  documentController.handleGetPresignedUrl
+  documentController.handleGetPresignedUrl,
+);
+
+router.post(
+  "/queryable/:conversationId/:documentId",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  documentController.handleToggleDocumentQueryable,
 );
 
 export default router;

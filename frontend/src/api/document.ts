@@ -60,4 +60,32 @@ const getPresignedUrl = async (
   return res.json();
 };
 
-export const DocumentApi = { uploadPdf, getPresignedUrl, addDocument };
+const toggleDocumentQueryable = async ({
+  conversationId,
+  documentId,
+}: {
+  conversationId: string;
+  documentId: string;
+}) => {
+  const res = await fetch(
+    new URL(
+      `/api/documents/queryable/${conversationId}/${documentId}`,
+      BASE_API_URL,
+    ),
+    {
+      method: "post",
+      credentials: "include",
+    },
+  );
+
+  if (!res.ok) throw new Error("Failed to toggle document queryable");
+
+  return res.json();
+};
+
+export const DocumentApi = {
+  uploadPdf,
+  getPresignedUrl,
+  addDocument,
+  toggleDocumentQueryable,
+};

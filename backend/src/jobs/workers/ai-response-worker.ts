@@ -47,10 +47,14 @@ aiResponseQueue.process(2, async (job) => {
   try {
     const t0 = process.hrtime.bigint();
 
+    const queryableDocuments =
+      await documentService.getQueryableDocuments(conversationId);
+
     const context = await documentService.getNearestChunks(
       conversationId,
       userId,
       query,
+      queryableDocuments.map((d) => d.id),
     );
 
     console.log("Context", context);

@@ -169,6 +169,13 @@
       "when": 1767449938584,
       "tag": "0023_tense_alex_power",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1770453592313,
+      "tag": "0024_faithful_ultimatum",
+      "breakpoints": true
     }
   ]
 }

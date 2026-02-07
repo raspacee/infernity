@@ -12,7 +12,11 @@ export type Document = {
   s3Key: string; // varchar(512)
   s3Url: string; // varchar(1000)
   uploadedAt: string | null; // timestamp with timezone, stored as string, nullable
+  isQueryable: boolean;
 };
 
-export type SourceItem = Pick<Document, "id" | "originalFileName">;
+export type SourceItem = Pick<
+  Document,
+  "id" | "originalFileName" | "isQueryable"
+>;
 export type GetSourcesResultType = { data: SourceItem[] };

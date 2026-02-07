@@ -6,7 +6,7 @@ import { NotFoundError } from "../exceptions/not-found-error";
 
 export class ConversationService {
   private getConversationOrThrow = async (
-    id: string
+    id: string,
   ): Promise<typeof conversationsTable.$inferSelect> => {
     const [conversation] = await db
       .select()
@@ -33,7 +33,7 @@ export class ConversationService {
       .where(eq(conversationsTable.id, conversationId))
       .innerJoin(
         documentsTable,
-        eq(conversationsTable.id, documentsTable.conversationId)
+        eq(conversationsTable.id, documentsTable.conversationId),
       );
 
     if (!conversation) return null;
@@ -53,7 +53,7 @@ export class ConversationService {
   };
 
   public createConversation = async (
-    newConversation: typeof conversationsTable.$inferInsert
+    newConversation: typeof conversationsTable.$inferInsert,
   ) => {
     const [conversation] = await db
       .insert(conversationsTable)
@@ -66,7 +66,7 @@ export class ConversationService {
 
   public updateConversation = async (
     conversationId: string,
-    fields: UpdateConversationFields
+    fields: UpdateConversationFields,
   ): Promise<typeof conversationsTable.$inferSelect> => {
     const [result] = await db
       .update(conversationsTable)
@@ -86,6 +86,7 @@ export class ConversationService {
       .select({
         id: documentsTable.id,
         originalFileName: documentsTable.originalFilename,
+        isQueryable: documentsTable.isQueryable,
       })
       .from(documentsTable)
       .where(eq(documentsTable.conversationId, conversationId))
