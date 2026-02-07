@@ -13,6 +13,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { updateConversationSchema } from "../validators/conversation.validator";
 import { llm, NAMING_LLM_SYSTEM_PROMPT, namingLlm } from "../utils/chat";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { NotFoundError } from "../exceptions/not-found-error";
 
 const conversationService = new ConversationService();
 const messageService = new MessageService();
@@ -275,6 +276,27 @@ export class ConversationController {
       console.error(err);
       res.status(500).json({
         error: "Failed to update conversation message",
+      });
+    }
+  };
+
+  public handleGetSources = async (req: Request, res: Response) => {
+    try {
+      const { conversationId } = req.params;
+
+      const sources = await conversationService.getConversationSources(
+        conversationId
+      );
+
+      res.status(200).json({ data: sources });
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return res.status(404).json({ error: "Conversation Id not found" });
+      }
+
+      console.error(err);
+      res.status(500).json({
+        error: "Failed to get conversation sources",
       });
     }
   };

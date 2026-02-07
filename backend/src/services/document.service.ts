@@ -42,7 +42,7 @@ interface DocumentProcessingResult {
 export class DocumentService {
   constructor(
     private s3Client: S3Client,
-    private documentsIndex: Index<RecordMetadata>
+    private documentsIndex: Index<RecordMetadata>,
   ) {}
 
   /**
@@ -89,13 +89,14 @@ export class DocumentService {
     // const chunks = createChunksWithPageMerging(
     //   parsedPdf.pages.map((page) => page.text)
     // );
+    console.log(parsedPdf.pages);
     const chunks = createOverlappingChunks(parsedPdf.pages);
 
     await this.storeEmbeddingsAndChunks(
       documentId,
       userId,
       chunks,
-      conversationId
+      conversationId,
     );
 
     await db
@@ -115,7 +116,7 @@ export class DocumentService {
    * @param parsed
    */
   private async createDocument(
-    newDocument: typeof documentsTable.$inferInsert
+    newDocument: typeof documentsTable.$inferInsert,
   ) {
     await db.insert(documentsTable).values({
       ...newDocument,
@@ -134,28 +135,29 @@ export class DocumentService {
     documentId: string,
     userId: string,
     chunks: Chunk[],
-    conversationId: string
+    conversationId: string,
   ) {
     const embeddings = await createEmbeddings(chunks);
+    console.log(embeddings);
 
     const pineconeRecords = await this.storePineconeEmbeddings(
       embeddings,
       conversationId,
-      userId
+      userId,
     );
 
     await this.storeDocumentChunks(
       embeddings,
       pineconeRecords,
       documentId,
-      userId
+      userId,
     );
   }
 
   private async storePineconeEmbeddings(
     embeddings: EmbeddingWithChunk[],
     conversationId: string,
-    userId: string
+    userId: string,
   ) {
     const pineconeRecords: PineconeRecord[] = embeddings.map((embedding) => ({
       id: uuid(),
@@ -174,7 +176,7 @@ export class DocumentService {
     embeddings: EmbeddingWithChunk[],
     pineconeRecords: PineconeRecord[],
     documentId: string,
-    userId: string
+    userId: string,
   ) {
     const boxesToBeInserted: (typeof chunkBoxPositionTable.$inferInsert)[] = [];
 
@@ -186,6 +188,7 @@ export class DocumentService {
           boxesToBeInserted.push({
             chunkId,
             ...box,
+            pageNo: embeddings[index].chunk.pageNumber,
           });
         }
 
@@ -202,13 +205,17 @@ export class DocumentService {
       });
 
     await Promise.all([
-      await db.insert(documentChunksTable).values(documentChunksToBeInserted),
-      await db.insert(chunkBoxPositionTable).values(boxesToBeInserted),
+      documentChunksToBeInserted.length > 0
+        ? db.insert(documentChunksTable).values(documentChunksToBeInserted)
+        : Promise.resolve(),
+      boxesToBeInserted.length > 0
+        ? db.insert(chunkBoxPositionTable).values(boxesToBeInserted)
+        : Promise.resolve(),
     ]);
   }
 
   public getDocumentById = async (
-    documentId: string
+    documentId: string,
   ): Promise<typeof documentsTable.$inferSelect | null> => {
     const [document] = await db
       .select()
@@ -222,7 +229,7 @@ export class DocumentService {
 
   public getPresignedUrl = async (
     documentKey: string,
-    bucketName: string
+    bucketName: string,
   ): Promise<string> => {
     const command = new GetObjectCommand({
       Bucket: bucketName,
@@ -230,7 +237,7 @@ export class DocumentService {
     });
 
     const presignedUrl = await getSignedUrl(this.s3Client, command, {
-      expiresIn: 60,
+      expiresIn: 300,
     });
 
     return presignedUrl;
@@ -247,13 +254,13 @@ export class DocumentService {
   public async getNearestChunks(
     conversationId: string,
     userId: string,
-    query: string
+    query: string,
   ) {
     const vector = await openaiembeddings.embedQuery(query);
 
     const response = await this.documentsIndex.namespace(userId).searchRecords({
       query: {
-        topK: 5,
+        topK: 6,
         vector: {
           values: vector,
         },
@@ -263,6 +270,8 @@ export class DocumentService {
       },
     });
 
+    if (response.result.hits.length === 0) return [];
+
     const pineconesIds = response.result.hits.map((hit) => hit._id);
 
     const chunksWithBox = await db
@@ -270,23 +279,31 @@ export class DocumentService {
       .from(documentChunksTable)
       .leftJoin(
         chunkBoxPositionTable,
-        eq(chunkBoxPositionTable.chunkId, documentChunksTable.id)
+        eq(chunkBoxPositionTable.chunkId, documentChunksTable.id),
       )
       .where(inArray(documentChunksTable.pineconeId, pineconesIds));
 
     const grouped = Object.values(
-      chunksWithBox.reduce((acc, { documentChunks, chunkBoxPosition }) => {
-        acc[documentChunks.id] ??= { ...documentChunks, boxPositions: [] };
-        if (chunkBoxPosition)
-          acc[documentChunks.id].boxPositions.push(chunkBoxPosition);
-        return acc;
-      }, {} as Record<string, typeof documentChunksTable.$inferSelect & { boxPositions: (typeof chunkBoxPositionTable.$inferSelect)[] }>)
+      chunksWithBox.reduce(
+        (acc, { documentChunks, chunkBoxPosition }) => {
+          acc[documentChunks.id] ??= { ...documentChunks, boxPositions: [] };
+          if (chunkBoxPosition)
+            acc[documentChunks.id].boxPositions.push(chunkBoxPosition);
+          return acc;
+        },
+        {} as Record<
+          string,
+          typeof documentChunksTable.$inferSelect & {
+            boxPositions: (typeof chunkBoxPositionTable.$inferSelect)[];
+          }
+        >,
+      ),
     );
     return grouped;
   }
 
   public async getDocumentByConversationId(
-    conversationId: string
+    conversationId: string,
   ): Promise<typeof documentsTable.$inferSelect | null> {
     if (!conversationId) return null;
 

@@ -26,6 +26,7 @@ export function createOverlappingChunks(
       const isLast = i === page.items.length - 1;
 
       if (buffer.length >= chunkSize || isLast) {
+        console.log("pageNumber", page.pageNumber);
         chunks.push({
           pageNumber: page.pageNumber,
           text: buffer.trim(),

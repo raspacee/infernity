@@ -1,3 +1,5 @@
+"use client";
+
 import { TextArea } from "@/components/ui/text-area";
 import { CompactButton, IconButton } from "@/components/ui/button";
 import { ArrowUp, Square, X } from "lucide-react";

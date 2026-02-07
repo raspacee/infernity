@@ -2,8 +2,21 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { conversationsTable, documentsTable } from "../db/schema";
 import { UpdateConversationFields } from "../validators/conversation.validator";
+import { NotFoundError } from "../exceptions/not-found-error";
 
 export class ConversationService {
+  private getConversationOrThrow = async (
+    id: string
+  ): Promise<typeof conversationsTable.$inferSelect> => {
+    const [conversation] = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, id))
+      .limit(1);
+    if (!conversation) throw new NotFoundError("Conversation not found");
+    return conversation;
+  };
+
   public getUserConversations = async (userId: string) => {
     const conversations = await db
       .select()
@@ -60,6 +73,24 @@ export class ConversationService {
       .set(fields)
       .where(eq(conversationsTable.id, conversationId))
       .returning();
+
+    if (!result) throw new NotFoundError("Conversation not found");
+
     return result;
+  };
+
+  public getConversationSources = async (conversationId: string) => {
+    await this.getConversationOrThrow(conversationId);
+
+    const sources = await db
+      .select({
+        id: documentsTable.id,
+        originalFileName: documentsTable.originalFilename,
+      })
+      .from(documentsTable)
+      .where(eq(documentsTable.conversationId, conversationId))
+      .orderBy(desc(documentsTable.uploadedAt));
+
+    return sources;
   };
 }

@@ -60,7 +60,7 @@ export default function PdfViewer({
       const highlight = getHighlightById(parseIdFromHash());
       if (highlight) scrollViewerTo.current(highlight);
     }
-  }, [highlights, scrollViewerTo.current]);
+  }, [highlights]);
 
   useEffect(() => {
     window.addEventListener("hashchange", scrollToHighlightFromHash, false);

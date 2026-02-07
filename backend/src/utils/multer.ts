@@ -2,7 +2,7 @@ import multer from "multer";
 
 export const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1000 },
+  limits: { fileSize: 5 * 1024 * 1000 }, // 5 MB
   fileFilter: (_, file, cb) => {
     const valid = [
       "application/pdf",

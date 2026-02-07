@@ -2,9 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { useRef, useState } from "react";
-import { Button, LinkButton } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input, InputWrapper } from "@/components/ui/input";
 import {
   Form,
@@ -15,52 +14,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import Image from "next/image";
-import { GoogleIcon } from "@/components/GoogleIcon";
-import { GithubIcon } from "@/components/GithubIcon";
 import { Divider } from "@/components/ui/divider";
 import { Spinner } from "@/components/ui/spinner";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
-import Logo from "@/components/Logo";
 import GoogleSignIn from "@/components/GoogleSignIn";
-
-const FormSchema = z
-  .object({
-    email: z.string(),
-    password: z.string(),
-  })
-  .superRefine((data, ctx) => {
-    // Validate email first
-    if (!data.email || data.email.trim().length === 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Email is required",
-        path: ["email"],
-      });
-      return; // Stop here
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Please enter a valid email address",
-        path: ["email"],
-      });
-      return; // Stop here - don't validate password
-    }
-
-    // Only validate password if email is valid
-    if (!data.password || data.password.trim().length === 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Password is required",
-        path: ["password"],
-      });
-    }
-  });
+import Link from "next/link";
+import { useSigninUser } from "@/hooks/user/use-signin-user";
+import { SigninSchema, SigninSchemaType } from "@/lib/schemas";
 
 export default function Page() {
-  const [isLoading, setIsLoading] = useState(false);
+  const { mutateAsync: signin, isPending } = useSigninUser();
 
   const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,8 +36,8 @@ export default function Page() {
 
   const IconComponent = showPassword ? EyeOffIcon : EyeIcon;
 
-  const form = useForm<z.infer<typeof FormSchema>>({
-    resolver: zodResolver(FormSchema),
+  const form = useForm<SigninSchemaType>({
+    resolver: zodResolver(SigninSchema),
     mode: "onSubmit",
     reValidateMode: "onChange",
     defaultValues: {
@@ -83,14 +46,8 @@ export default function Page() {
     },
   });
 
-  const onSubmit = (data: z.infer<typeof FormSchema>) => {
-    console.log(data);
-    setIsLoading(true);
-
-    setTimeout(() => {
-      setIsLoading(false);
-      form.reset();
-    }, 2000);
+  const onSubmit = (data: SigninSchemaType) => {
+    signin(data);
   };
 
   return (
@@ -109,9 +66,9 @@ export default function Page() {
             <h1 className="heading-5">Sign In</h1>
             <p className="text-fg-secondary text-sm font-normal">
               Don&apos;t have an account?{" "}
-              <LinkButton href="#" color="primary">
+              <Link href="/signup" color="primary">
                 Sign Up
-              </LinkButton>
+              </Link>
             </p>
           </div>
           <Form {...form}>
@@ -137,9 +94,9 @@ export default function Page() {
                     <FormItem>
                       <div className="flex items-center justify-between">
                         <FormLabel>Password</FormLabel>
-                        <LinkButton href="#" color="primary">
+                        <Link href="#" color="primary">
                           Forgot Password?
-                        </LinkButton>
+                        </Link>
                       </div>
                       <FormControl>
                         <InputWrapper>
@@ -160,8 +117,8 @@ export default function Page() {
                     </FormItem>
                   )}
                 />
-                <Button className="w-full" type="submit" disabled={isLoading}>
-                  {isLoading ? <Spinner variant="default" /> : "Sign In"}
+                <Button className="w-full" type="submit" disabled={isPending}>
+                  {isPending ? <Spinner variant="default" /> : "Sign In"}
                 </Button>
               </div>
             </form>
@@ -174,16 +131,8 @@ export default function Page() {
               </span>
               <Divider className="flex-1" />
             </div>
-            <div className="flex gap-3">
+            <div className="flex">
               <GoogleSignIn />
-              <Button
-                variant="outline"
-                color="neutral"
-                className="text-fg-secondary w-full"
-              >
-                <GithubIcon />
-                Github
-              </Button>
             </div>
           </div>
         </div>

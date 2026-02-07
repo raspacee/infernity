@@ -1,5 +1,5 @@
 import { Conversation } from "@/types/conversation.types";
-import { Document } from "@/types/document.types";
+import { Document, GetSourcesResultType } from "@/types/document.types";
 import { BASE_API_URL } from ".";
 import { UpdateConversationFields } from "@/validators/conversation.validator";
 
@@ -80,9 +80,29 @@ const updateConversation = async (
   return res.json();
 };
 
+const getConversationSources = async (
+  conversationId: string,
+): Promise<GetSourcesResultType> => {
+  const res = await fetch(
+    new URL(`/api/conversations/${conversationId}/sources`, BASE_API_URL),
+    {
+      method: "get",
+      credentials: "include",
+    },
+  );
+
+  if (!res.ok) {
+    const { error } = await res.json();
+    throw new Error(error);
+  }
+
+  return res.json();
+};
+
 export const ConversationApi = {
   createNewConversation,
   getUserConversations,
   getConversation,
   updateConversation,
+  getConversationSources,
 };

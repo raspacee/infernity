@@ -50,7 +50,7 @@ aiResponseQueue.process(2, async (job) => {
     const context = await documentService.getNearestChunks(
       conversationId,
       userId,
-      query
+      query,
     );
 
     console.log("Context", context);
@@ -78,7 +78,7 @@ aiResponseQueue.process(2, async (job) => {
           text: `\n\nPrevious conversation history: ${JSON.stringify(
             messagesHistory,
             null,
-            2
+            2,
           )}`,
         },
       ],
@@ -104,7 +104,7 @@ aiResponseQueue.process(2, async (job) => {
 
     const response = await llm.stream(
       [systemPrompt, new HumanMessage(llmFields)],
-      { signal: controller.signal }
+      { signal: controller.signal },
     );
 
     for await (const chunk of response) {
@@ -142,12 +142,14 @@ aiResponseQueue.process(2, async (job) => {
           ...context[idx].boxPositions.map((boxPosition) => ({
             chunkBoxPositionId: boxPosition.id,
             messageId: createdMessage.id,
-          }))
+          })),
         );
       }
-      await db
-        .insert(chunkBoxPositionToMessageMappingTable)
-        .values(toBeInserted);
+      if (toBeInserted.length > 0) {
+        await db
+          .insert(chunkBoxPositionToMessageMappingTable)
+          .values(toBeInserted);
+      }
     }
 
     io.to(conversationId).emit(AI_STATUS_QUEUE_NAME, {

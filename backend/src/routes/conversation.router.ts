@@ -6,6 +6,7 @@ import { DocumentService } from "../services/document.service";
 import { s3Client } from "../clients/s3-client";
 import { documentsIndex } from "../clients/pinecone-client";
 import { FlashCardController } from "../controllers/flashcard.controller";
+import { MindMapController } from "../controllers/mindmap.controller";
 
 const router = Router();
 
@@ -67,6 +68,27 @@ router.get(
   AuthMiddleware.validateAccessToken,
   AuthMiddleware.verifyConversationOwnership,
   FlashCardController.handleGetFlashCards
+);
+
+router.post(
+  "/:conversationId/mindmap",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  MindMapController.handleCreateMindMap
+);
+
+router.get(
+  "/:conversationId/mindmap",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  MindMapController.handleGetMindMap
+);
+
+router.get(
+  "/:conversationId/sources",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  conversationController.handleGetSources
 );
 
 export default router;

@@ -12,6 +12,7 @@ import {
   unique,
   bigserial,
   real,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const providerTypeEnum = pgEnum("provider", ["google", "facebook"]);
@@ -22,10 +23,25 @@ export const usersTable = pgTable("users", {
   id: uuid().primaryKey(),
   name: varchar({ length: 255 }).notNull(),
   email: varchar({ length: 255 }).notNull().unique(),
-  provider: providerTypeEnum().notNull(),
-  providerId: varchar({ length: 255 }).notNull(),
+  provider: providerTypeEnum(),
+  providerId: varchar({ length: 255 }),
   avatarUrl: varchar({ length: 512 }),
   createdAt: timestamp({
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+  isTraditionalAccount: boolean().notNull(),
+  isVerified: boolean().notNull(),
+  password: varchar({ length: 255 }),
+});
+
+export const signupVerificationTable = pgTable("signupVerificationTable", {
+  id: varchar({ length: 255 }).primaryKey(),
+  userId: uuid()
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+  email: varchar().notNull(),
+  expiresAt: timestamp({
     withTimezone: true,
     mode: "string",
   }).notNull(),
@@ -179,9 +195,25 @@ export const flashCardsGroupTable = pgTable("flashcards_group", {
 
   title: varchar({ length: 512 }).notNull(),
 
-  conversationId: uuid().references(() => conversationsTable.id, {
-    onDelete: "cascade",
-  }),
+  conversationId: uuid()
+    .references(() => conversationsTable.id, {
+      onDelete: "cascade",
+    })
+    .notNull(),
+
+  createdAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+});
+
+export const mindMapTable = pgTable("mind_map", {
+  id: bigserial({ mode: "number" }).primaryKey(),
+
+  conversationId: uuid()
+    .references(() => conversationsTable.id, {
+      onDelete: "cascade",
+    })
+    .notNull(),
+
+  chartCode: text().notNull(),
 
   createdAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
 });
