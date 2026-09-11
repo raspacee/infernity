@@ -4,6 +4,7 @@ import Chat from "@/components/conversations/chat";
 import { DocumentContextProvider } from "@/context/DocumentContext";
 import { useSidebarContext } from "@/context/SidebarContext";
 import { useGetConversation } from "@/hooks/conversation/use-get-conversation";
+import { useGetDocuments } from "@/hooks/document/use-get-documents";
 import { useGetPresignedUrl } from "@/hooks/document/use-get-presigned-url";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
@@ -28,21 +29,31 @@ export default function Page() {
     { enabled: !!data?.conversation.id },
   );
 
+  const { data: documentsPresignedUrls, isPending: isDocumentsLoading } =
+    useGetDocuments(params.conversationId, {
+      enabled: !!data?.conversation.id,
+    });
+
   useEffect(() => {
     setIsOpen(false);
   }, []);
 
+  if (isConversationLoading || isPdfLoading || isDocumentsLoading) {
+    return <p>Loading...</p>;
+  }
+
+  if (!documentsPresignedUrls) {
+    return <p>No documents found</p>;
+  }
+
   return (
-    <DocumentContextProvider>
+    <DocumentContextProvider
+      documentsPresignedUrls={documentsPresignedUrls!.presignedUrls}
+    >
       <div className="flex h-full w-full">
         <div className="border-border h-full flex-1 overflow-auto border-r">
           {isPdfLoading && <p>Loading...</p>}
-          {pdf && data && (
-            <PDFViewer
-              document={data.document}
-              presignedUrl={pdf.presignedUrl}
-            />
-          )}
+          {pdf && data && <PDFViewer />}
         </div>
         <div className="flex-1">
           <Chat conversationId={params.conversationId} />

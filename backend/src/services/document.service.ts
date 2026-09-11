@@ -87,7 +87,7 @@ export class DocumentService {
     // const chunks = createChunksWithPageMerging(
     //   parsedPdf.pages.map((page) => page.text)
     // );
-    const chunks = createOverlappingChunks(parsedPdf.pages);
+    const chunks = createOverlappingChunks(documentId, parsedPdf.pages);
 
     await this.storeEmbeddingsAndChunks(
       documentId,
@@ -245,13 +245,12 @@ export class DocumentService {
   /**
    * Get the nearest document chunks to a user query
    * by comparing their embeddings
-   * @param conversationId
    * @param userId
-   * @param content - The user's query
+   * @param query - The user's query
+   * @param documentIds - The IDs of the documents to search in
    * @returns
    */
   public async getNearestChunks(
-    conversationId: string,
     userId: string,
     query: string,
     documentIds: string[],
@@ -337,6 +336,15 @@ export class DocumentService {
           eq(documentsTable.isQueryable, true),
         ),
       );
+
+    return documents;
+  }
+
+  public async getDocuments(conversationId: string) {
+    const documents = await db
+      .select()
+      .from(documentsTable)
+      .where(eq(documentsTable.conversationId, conversationId));
 
     return documents;
   }

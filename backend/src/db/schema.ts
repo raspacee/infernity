@@ -62,7 +62,7 @@ export const documentsTable = pgTable(
       .references(() => usersTable.id)
       .notNull(),
     conversationId: uuid()
-      .references(() => conversationsTable.id)
+      .references(() => conversationsTable.id, { onDelete: "cascade" })
       .notNull(),
     textContent: text().notNull(),
     processingStatus: processingStatusEnum().default("pending").notNull(),
@@ -92,7 +92,7 @@ export const documentChunksTable = pgTable(
   {
     id: uuid().primaryKey(),
     documentId: uuid()
-      .references(() => documentsTable.id)
+      .references(() => documentsTable.id, { onDelete: "cascade" })
       .notNull(),
     userId: uuid()
       .references(() => usersTable.id)
@@ -120,7 +120,9 @@ export const chunkBoxPositionTable = pgTable(
   "chunkBoxPosition",
   {
     id: uuid().defaultRandom().primaryKey(),
-    chunkId: uuid().references(() => documentChunksTable.id),
+    chunkId: uuid().references(() => documentChunksTable.id, {
+      onDelete: "cascade",
+    }),
     x1: real().notNull(),
     y1: real().notNull(),
     x2: real().notNull(),
@@ -128,6 +130,9 @@ export const chunkBoxPositionTable = pgTable(
     width: real().notNull(),
     height: real().notNull(),
     pageNo: integer(),
+    documentId: uuid().references(() => documentsTable.id, {
+      onDelete: "cascade",
+    }),
   },
   (table) => [index("chunkPositionChunkIdIndex").on(table.chunkId)],
 );
@@ -136,10 +141,10 @@ export const chunkBoxPositionToMessageMappingTable = pgTable(
   "chunkBoxPositionToMessageMapping",
   {
     chunkBoxPositionId: uuid()
-      .references(() => chunkBoxPositionTable.id)
+      .references(() => chunkBoxPositionTable.id, { onDelete: "cascade" })
       .notNull(),
     messageId: bigserial({ mode: "number" })
-      .references(() => messagesTable.id)
+      .references(() => messagesTable.id, { onDelete: "cascade" })
       .notNull(),
   },
   (table) => [unique().on(table.chunkBoxPositionId, table.messageId)],

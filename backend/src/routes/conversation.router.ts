@@ -42,6 +42,13 @@ router.get(
   conversationController.handleGetConversation,
 );
 
+router.delete(
+  "/:conversationId",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  conversationController.handleDeleteConversation,
+);
+
 router.patch(
   "/:conversationId",
   AuthMiddleware.validateAccessToken,

@@ -7,6 +7,7 @@ export interface Box {
   y2: number;
   width: number;
   height: number;
+  documentId: string;
 }
 
 export interface TextItem extends Box {
@@ -64,6 +65,7 @@ export async function extractTextWithPositions(fileBuffer: Buffer) {
           y2,
           width,
           height,
+          documentId: "",
         };
       });
 

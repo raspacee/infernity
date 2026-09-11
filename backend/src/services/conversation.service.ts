@@ -94,4 +94,12 @@ export class ConversationService {
 
     return sources;
   };
+
+  public deleteConversation = async (conversationId: string) => {
+    await this.getConversationOrThrow(conversationId);
+
+    await db
+      .delete(conversationsTable)
+      .where(eq(conversationsTable.id, conversationId));
+  };
 }

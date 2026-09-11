@@ -1,11 +1,12 @@
 "use client";
 
 import { useVerifyUser } from "@/hooks/user/use-verify-user";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
-export default function Page() {
-  const search = new URLSearchParams(location.search);
-  const verificationToken = search.get("token");
+function VerifyEmailContent() {
+  const searchParams = useSearchParams();
+  const verificationToken = searchParams.get("token");
   const { mutateAsync: verifyUser } = useVerifyUser();
 
   useEffect(() => {
@@ -22,5 +23,13 @@ export default function Page() {
     <div className="p-3">
       <h1 className="text-lg">Verifying your email, please wait</h1>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

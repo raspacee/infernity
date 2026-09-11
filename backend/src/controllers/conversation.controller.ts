@@ -326,4 +326,19 @@ export class ConversationController {
       });
     }
   };
+
+  public handleDeleteConversation = async (req: Request, res: Response) => {
+    try {
+      const { conversationId } = req.params;
+
+      await conversationService.deleteConversation(conversationId);
+
+      res.status(200).json({ message: "Conversation deleted successfully" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        error: "Failed to delete conversation",
+      });
+    }
+  };
 }

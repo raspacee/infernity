@@ -1,9 +1,10 @@
 import { Box, Chunk, PageData } from "./pdf-parser";
 
 export function createOverlappingChunks(
+  documentId: string,
   pages: PageData[],
   chunkSize = 800,
-  overlap = 100
+  overlap = 100,
 ): Chunk[] {
   const chunks: Chunk[] = [];
 
@@ -21,6 +22,7 @@ export function createOverlappingChunks(
         y2: item.y2,
         width: item.width,
         height: item.height,
+        documentId,
       });
 
       const isLast = i === page.items.length - 1;

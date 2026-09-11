@@ -25,4 +25,5 @@ export type ChunkBoxPosition = {
   width: number;
   height: number;
   pageNo: number;
+  documentId: string;
 };

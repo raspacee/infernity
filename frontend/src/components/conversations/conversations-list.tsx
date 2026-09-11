@@ -1,6 +1,6 @@
 import { useGetUserConversations } from "@/hooks/conversation/use-get-user-conversations";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IconButton } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import {
   Dropdown,
   DropdownContent,
@@ -26,6 +26,19 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "../ui/empty";
+import { useDeleteConversation } from "@/hooks/conversation/use-delete-conversation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
+import { SVGProps } from "react";
 
 function NoInternetConnectionMediaContent(props: SVGProps<SVGSVGElement>) {
   return (
@@ -178,6 +191,8 @@ function NoInternetConnectionMediaContent(props: SVGProps<SVGSVGElement>) {
 
 export default function ConversationsList() {
   const { data: result, isLoading, isSuccess } = useGetUserConversations();
+  const { mutateAsync: deleteConversation, isPending: isDeleting } =
+    useDeleteConversation();
 
   const router = useRouter();
 
@@ -249,10 +264,39 @@ export default function ConversationsList() {
                   </DialogContent>
                 </Dialog>
                 <DropdownDivider />
-                <DropdownItem>
-                  <Trash2 />
-                  Delete
-                </DropdownItem>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownItem
+                      onSelect={(e) => e.preventDefault()}
+                      className="text-error"
+                    >
+                      <Trash2 className="stroke-error" />
+                      Delete
+                    </DropdownItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Conversation</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete the conversation?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel asChild>
+                        <Button color="neutral" variant="outline">
+                          Cancel
+                        </Button>
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => deleteConversation(conversation.id)}
+                        disabled={isDeleting}
+                        asChild
+                      >
+                        <Button color="error">Delete</Button>
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </DropdownContent>
             </Dropdown>
           </div>

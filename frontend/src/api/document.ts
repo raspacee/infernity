@@ -1,4 +1,5 @@
 import { BASE_API_URL } from ".";
+import { Document as DocumentT } from "@/types/document.types";
 
 const uploadPdf = async (file: File) => {
   const formData = new FormData();
@@ -83,9 +84,31 @@ const toggleDocumentQueryable = async ({
   return res.json();
 };
 
+const getDocuments = async (
+  conversationId: string,
+): Promise<{
+  presignedUrls: { presignedUrl: string; document: DocumentT }[];
+}> => {
+  const res = await fetch(
+    new URL(`/api/documents/documents/${conversationId}`, BASE_API_URL),
+    {
+      method: "get",
+      credentials: "include",
+    },
+  );
+
+  if (!res.ok) {
+    const { error } = await res.json();
+    throw new Error(error);
+  }
+
+  return res.json();
+};
+
 export const DocumentApi = {
   uploadPdf,
   getPresignedUrl,
   addDocument,
   toggleDocumentQueryable,
+  getDocuments,
 };

@@ -38,8 +38,8 @@ export default function Chat({ conversationId }: { conversationId: string }) {
     setSelectedImage,
     chatInputRef,
     setHighlights,
-    scrollViewerTo,
     setCurrentPage,
+    setActiveDocumentId,
   } = useDocumentContext();
 
   /* The status of AI is deliberately represented by two variables instead
@@ -266,7 +266,15 @@ export default function Chat({ conversationId }: { conversationId: string }) {
                       variant="soft"
                       color="neutral"
                       key={annotation.chunkId}
-                      onClick={() => showHighlight(annotation.annotations)}
+                      onClick={() => {
+                        setActiveDocumentId(
+                          annotation.annotations[0].documentId,
+                        );
+
+                        setTimeout(() => {
+                          showHighlight(annotation.annotations);
+                        }, 1000);
+                      }}
                     >
                       {annotation.chunkId.slice(0, 2)}
                     </Button>

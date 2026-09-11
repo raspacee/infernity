@@ -40,15 +40,15 @@ const HighlightPopup = ({
     </div>
   ) : null;
 
-export default function PdfViewer({
-  presignedUrl,
-  document: pdfDocument,
-}: {
-  document: DocumentT;
-  presignedUrl: string;
-}) {
+export default function PdfViewer() {
+  const { documentsPresignedUrls, activeDocumentId } = useDocumentContext();
+
   const [scale, setScale] = useState(1);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [activeDocument, setActiveDocument] = useState<{
+    presignedUrl: string;
+    document: DocumentT;
+  } | null>(null);
 
   const { highlights, setHighlights, currentPage, setCurrentPage } =
     useDocumentContext();
@@ -120,6 +120,17 @@ export default function PdfViewer({
     });
   }, [currentPage]);
 
+  useEffect(() => {
+    const activeDocument = documentsPresignedUrls.find(
+      (doc) => doc.document.id === activeDocumentId,
+    );
+    setActiveDocument(activeDocument ?? null);
+  }, [activeDocumentId]);
+
+  if (!activeDocument) {
+    return <p>No active document found</p>;
+  }
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="border-b-border bg-bg-base top-0 z-10 flex h-10 items-center gap-4 border-b px-5">
@@ -134,11 +145,13 @@ export default function PdfViewer({
             }}
             onBlur={() => {
               if (parseInt(currentPage) < 0) setCurrentPage("0");
-              else if (parseInt(currentPage) > pdfDocument.pageCount)
-                setCurrentPage(`${pdfDocument.pageCount}`);
+              else if (
+                parseInt(currentPage) > activeDocument.document.pageCount
+              )
+                setCurrentPage(`${activeDocument.document.pageCount}`);
             }}
           />
-          of {pdfDocument.pageCount}
+          of {activeDocument.document.pageCount}
         </span>
         <div className="flex items-center gap-1">
           <Button
@@ -164,10 +177,14 @@ export default function PdfViewer({
         <PdfFeaturesButtons />
       </div>
       <div ref={scrollContainerRef} className="relative flex-1 overflow-auto">
-        <PdfLoader url={presignedUrl} beforeLoad={<Spinner />}>
+        <PdfLoader
+          key={activeDocumentId}
+          url={activeDocument.presignedUrl}
+          beforeLoad={<Spinner />}
+        >
           {(pdfDocument) => (
             <PdfHighlighter
-              key={`${scale}`}
+              key={`${activeDocumentId}-${scale}`}
               pdfDocument={pdfDocument}
               pdfScaleValue={scale.toString()}
               enableAreaSelection={(event) => event.altKey}

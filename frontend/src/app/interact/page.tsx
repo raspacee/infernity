@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, IconButton } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/button";
 import FileUpload from "@/components/ui/file-upload";
 import { TextArea } from "@/components/ui/text-area";
 import { Paperclip, Send } from "lucide-react";
@@ -95,10 +95,10 @@ export default function Page() {
         </div>
         <div className="border-border-alpha flex h-30 w-full rounded-xl border p-3">
           <TextArea
-            classNames={{
-              base: "w-full",
-              textarea: "border-none drop-shadow-none focus:ring-0 p-0",
-            }}
+            // classNames={{
+            //   base: "w-full",
+            //   textarea: "border-none drop-shadow-none focus:ring-0 p-0",
+            // }}
             resizable={false}
             placeholder="Ask something"
             value={query}

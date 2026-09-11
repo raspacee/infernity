@@ -1,0 +1,2 @@
+ALTER TABLE "chunkBoxPosition" ADD COLUMN "documentId" uuid;--> statement-breakpoint
+ALTER TABLE "chunkBoxPosition" ADD CONSTRAINT "chunkBoxPosition_documentId_documents_id_fk" FOREIGN KEY ("documentId") REFERENCES "public"."documents"("id") ON DELETE no action ON UPDATE no action;

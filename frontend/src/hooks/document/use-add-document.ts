@@ -14,6 +14,9 @@ export const useAddDocument = () => {
       queryClient.invalidateQueries({
         queryKey: ["conversations", variables.conversationId, "sources"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["document", variables.conversationId, "presigned-urls"],
+      });
       toast.success("Successfully added a new source");
     },
   });

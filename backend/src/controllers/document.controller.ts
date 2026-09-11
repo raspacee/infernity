@@ -79,6 +79,31 @@ export class DocumentController {
     }
   };
 
+  public handleGetDocuments = async (req: Request, res: Response) => {
+    try {
+      const { conversationId } = req.params;
+
+      const documents = await this.documentService.getDocuments(conversationId);
+
+      const presignedUrls = [];
+      for (const document of documents) {
+        const presignedUrl = await this.documentService.getPresignedUrl(
+          document.s3Key,
+          document.bucketName,
+        );
+        presignedUrls.push({
+          presignedUrl,
+          document,
+        });
+      }
+
+      res.status(200).json({ presignedUrls });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to get documents" });
+    }
+  };
+
   // handleUploadDocument = async (req: Request, res: Response) => {
   //   try {
   //     if (!req.file) {

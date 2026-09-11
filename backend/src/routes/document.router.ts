@@ -29,4 +29,11 @@ router.post(
   documentController.handleToggleDocumentQueryable,
 );
 
+router.get(
+  "/documents/:conversationId",
+  AuthMiddleware.validateAccessToken,
+  AuthMiddleware.verifyConversationOwnership,
+  documentController.handleGetDocuments,
+);
+
 export default router;

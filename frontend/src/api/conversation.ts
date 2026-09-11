@@ -99,10 +99,28 @@ const getConversationSources = async (
   return res.json();
 };
 
+const deleteConversation = async (conversationId: string) => {
+  const res = await fetch(
+    new URL(`/api/conversations/${conversationId}`, BASE_API_URL),
+    {
+      method: "DELETE",
+      credentials: "include",
+    },
+  );
+
+  if (!res.ok) {
+    const { error } = await res.json();
+    throw new Error(error);
+  }
+
+  return res.json();
+};
+
 export const ConversationApi = {
   createNewConversation,
   getUserConversations,
   getConversation,
   updateConversation,
   getConversationSources,
+  deleteConversation,
 };
